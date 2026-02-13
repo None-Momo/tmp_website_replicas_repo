@@ -27,11 +27,6 @@ export function useLlmRecommender(
 		let cancelled = false;
 		const ctrl = new AbortController();
 		const t = setTimeout(async () => {
-			if (!opts?.apiKey || !filtered?.length) {
-				setRanked(null);
-				console.log("LLM Recommender disabled (no API key or no snippets)");
-				return filtered;
-			}
 			try {
 				setLoading(true);
 				setError(null);

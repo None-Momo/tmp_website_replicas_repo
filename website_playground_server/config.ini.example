@@ -1,0 +1,4 @@
+[settings]
+environment=py312
+deepseek_api=your-api-key-here
+deepseek_base_url=https://api.deepseek.com

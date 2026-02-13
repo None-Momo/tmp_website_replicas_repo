@@ -1,1 +1,2 @@
-export const DEEPSEEK_API_KEY = (window as any).DEEPSEEK_API_KEY || "sk-2592351ef2cd4a12af947d50a0614b46";
+/** Not used for pickBestFile (backend uses config.ini). Kept for legacy callers. */
+export const DEEPSEEK_API_KEY = (typeof window !== "undefined" && (window as any).DEEPSEEK_API_KEY) || "";

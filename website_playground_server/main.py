@@ -257,6 +257,50 @@ async def generate_dynamic_page(request: Request):
         return {"error": f"Failed to generate page: {str(e)}"}
 
 
+@app.post("/pickBestFile")
+async def pick_best_file(request: Request):
+	"""
+	Pick the single most relevant filename from a list for a user's query.
+	Uses the API key from config.ini; no key needed from the frontend.
+	"""
+	data = await request.json()
+	query = (data.get("query") or "").strip()
+	candidates = data.get("candidates") or []
+	model = data.get("model", "deepseek-chat")
+
+	if not query or not candidates:
+		return {"best": None}
+
+	system = (
+		"You pick the SINGLE most relevant filename from a list for a user's shopping/search query.\n"
+		"Prefer exact topical fit (e.g., milk vs shoes), then specificity.\n"
+		'Return STRICT JSON: {"best":"<one of the provided filenames>","reason":"<short>"} — no extra text.'
+	)
+	user = f'Query: "{query}"\nCandidates (JSON array): {json.dumps(candidates)}\nPick exactly one "best" from the list.'
+
+	try:
+		response = openai.chat.completions.create(
+			model=model,
+			messages=[
+				{"role": "system", "content": system},
+				{"role": "user", "content": user},
+			],
+			temperature=0,
+			max_tokens=256,
+		)
+		content = response.choices[0].message.content or "{}"
+		parsed = json.loads(content)
+		best = parsed.get("best")
+		reason = parsed.get("reason", "")
+		if best and best in candidates:
+
+			print("pickBestFile response:", {"best": best, "reason": reason})
+			return {"best": best, "reason": reason}
+	except (json.JSONDecodeError, Exception) as e:
+		print("pickBestFile error:", e)
+	return {"best": None}
+
+
 if __name__ == "__main__":
 	print("running main")
 	uvicorn.run("main:app", port=8089, host="0.0.0.0", log_level="info", reload=True, workers=4)
