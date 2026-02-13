@@ -1,0 +1,8 @@
+.sidebar-section li {
+	margin: 6px 0;
+}
+
+.sidebar-section li:hover {
+	color: #9a790c;
+	border-radius: 4px;
+}

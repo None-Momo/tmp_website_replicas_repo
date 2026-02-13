@@ -1,0 +1,12 @@
+# Don't bake API keys into the image; config.ini is generated at run from env
+website_playground_server/config.ini
+# Dependencies and caches (reinstalled in container)
+websites_playground/node_modules
+websites_playground/build
+website_playground_server/__pycache__
+website_playground_server/cache
+*.pyc
+.git
+.gitignore
+.dockerignore
+steps_to_run

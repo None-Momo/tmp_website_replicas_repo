@@ -1,0 +1,7 @@
+# Web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# LLM / API
+openai>=1.0.0
+tiktoken>=0.5.0
