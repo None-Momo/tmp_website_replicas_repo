@@ -8,7 +8,7 @@ This project runs a **frontend** (React app) and a **backend** (FastAPI server) 
 
 ## Table of contents
 
-- [Option 1: Run with Docker](#option-1-run-with-docker)
+- [Option 1: Run with Docker (Recommended)](#option-1-run-with-docker)
 - [Option 2: Run locally](#option-2-run-locally)
 - [Ports and URLs](#ports-and-urls)
 - [Available frontend routes](#available-frontend-routes)
@@ -16,7 +16,7 @@ This project runs a **frontend** (React app) and a **backend** (FastAPI server) 
 
 ---
 
-## Option 1: Run with Docker
+## Option 1: Run with Docker (Recommended)
 
 Docker builds the frontend, runs the backend and nginx in one container, and generates `config.ini` from environment variables at startup. No API key is stored in the image.
 
