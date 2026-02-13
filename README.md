@@ -27,7 +27,7 @@ Docker builds the frontend, runs the backend and nginx in one container, and gen
 
 ### Build the image
 
-From this directory (`docker/`):
+From this directory:
 
 ```bash
 docker build -t website-playground .
@@ -57,9 +57,9 @@ If you omit `DEEPSEEK_BASE_URL`, it defaults to `https://api.deepseek.com`.
 ### Access the app
 
 - **Frontend (UI):** http://localhost:3000
-- **Backend API (e.g. OpenAPI docs):** http://localhost:8089/docs
+- **Backend API:** http://localhost:8089/docs
 
-The frontend calls the backend on port 8089 for LLM endpoints; nginx in the container proxies `/api/*` to the backend for routes like `/generatePage`.
+The frontend calls the backend on port 8089 for LLM endpoints; nginx in the container proxies `/api/*` to the backend for all routes.
 
 ### Docker notes
 
@@ -71,7 +71,7 @@ The frontend calls the backend on port 8089 for LLM endpoints; nginx in the cont
 
 ## Option 2: Run locally
 
-You run the **backend** and **frontend** as two separate processes. The backend needs a `config.ini` with your API key; the frontend is built and served with Node.
+You can run the **backend** and **frontend** as two separate processes. The backend needs a `config.ini` with your API key; the frontend is built and served with Node.
 
 ### Prerequisites
 
