@@ -8,7 +8,7 @@ This project runs a **frontend** (React app) and a **backend** (FastAPI server) 
 
 ## Table of contents
 
-- [Option 1: Run with Docker (Recommended)](#option-1-run-with-docker)
+- [Option 1: Run with Docker (Recommended)](#option-1-run-with-docker-(Recommended))
 - [Option 2: Run locally](#option-2-run-locally)
 - [Ports and URLs](#ports-and-urls)
 - [Available frontend routes](#available-frontend-routes)
