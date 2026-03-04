@@ -1,3 +1,4 @@
+import { BASE_API } from "./base_api";
 export async function fetchFromBackend(
     query: string,
     candidates: string[],
@@ -14,7 +15,7 @@ export async function fetchFromBackend(
     });
 
     // console.log("Fetching best file from backend with params:", params.toString());
-    const res = await fetch(`http://localhost:3001/api/search?query=milk`, {
+    const res = await fetch(`${BASE_API}/search?query=milk`, {
         headers: {
             // Authorization: `Bearer ${apiKey}`,
             // "Content-Type": "application/json",
@@ -37,7 +38,7 @@ export async function fetchFromBackend(
 /** Backend base URL (uses config.ini API key, no key in frontend). */
 const getBackendBase = () =>
     typeof window !== "undefined" && window.location.port === "3000"
-        ? "http://127.0.0.1:8089"
+        ? BASE_API
         : "/api";
 
 export async function pickBestFileWithDeepseek(
