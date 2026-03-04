@@ -1,3 +1,5 @@
+import { BASE_API } from "../utils/base_api";
+
 // llmRecommender.ts
 export type RankedSnippet = {
 	idx: number;          // original index in `filtered`
@@ -122,7 +124,7 @@ export async function llmRankFiltered(
 		// split the filename by slashes and take the last part
 		const filenamePart = filename ? filename.split('/').pop() : 'unknown';
 
-		const res1 = await fetch("http://127.0.0.1:8089/get_llm_recs", {
+		const res1 = await fetch(`${BASE_API}/get_llm_recs`, {
 			method: "POST",
 			signal,
 			headers: {
