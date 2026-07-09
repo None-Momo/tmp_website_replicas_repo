@@ -38,55 +38,59 @@ const ScapeStay: React.FC = () => {
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
 					<h1 className="text-2xl font-bold text-pink-500">ScapeStay</h1>
 					<nav className="hidden md:flex space-x-6">
-						<a href="#" className="text-gray-700 hover:text-pink-500">Places to stay</a>
-						<a href="#" className="text-gray-700 hover:text-pink-500">Experiences</a>
-						<a href="#" className="text-gray-700 hover:text-pink-500">Host</a>
+							<a href="#search-stays" className="text-gray-700 hover:text-pink-500">Places to stay</a>
+							<a href="#search-stays" className="text-gray-700 hover:text-pink-500">Experiences</a>
+							<a href="#search-stays" className="text-gray-700 hover:text-pink-500">Host</a>
 					</nav>
-					<button className="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600">Sign in</button>
+					<button type="button" className="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600">Sign in</button>
 				</div>
 			</header>
 
 			{/* Hero Section */}
-			<section className="flex-grow bg-gradient-to-br from-pink-600 to-fuchsia-300 text-white py-20 px-4 sm:px-6 lg:px-8">
-				<div className="max-w-4xl mx-auto text-center">
-					<h2 className="text-4xl md:text-6xl font-bold mb-4">Find your next stay</h2>
-					<p className="text-xl mb-8">Search deals on hotels, homes, and much more...</p>
-					<div className="bg-white rounded-lg shadow-lg p-6 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
-						<div className="flex items-center space-x-2 flex-1">
-							<Search className="text-gray-400" />
-							<input
-								type="text"
+				<main id="search-stays" className="flex-grow bg-gradient-to-br from-pink-600 to-fuchsia-300 text-white py-20 px-4 sm:px-6 lg:px-8">
+					<div className="max-w-4xl mx-auto text-center">
+						<h2 className="text-4xl md:text-6xl font-bold mb-4">Find your next stay</h2>
+						<p className="text-xl mb-8">Search deals on hotels, homes, and much more...</p>
+						<div className="bg-white rounded-lg shadow-lg p-6 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
+							<div className="flex items-center space-x-2 flex-1">
+								<Search className="text-gray-400" aria-hidden="true" />
+								<input
+									aria-label="Destination"
+									type="text"
 								placeholder="Where are you going?"
 								value={location}
 								onChange={(e) => setLocation(e.target.value)}
 								className="w-full p-2 border-none outline-none text-gray-700"
 							/>
 						</div>
-						<div className="flex items-center space-x-2 flex-1">
+							<div className="flex items-center space-x-2 flex-1">
 							{/* <Calendar className="text-gray-400" /> */}
 							{/* add a gray text  */}
-							<p className="text-gray-400" >CheckIn</p>
-							<input
-								type="date"
+								<label htmlFor="stayscape-checkin" className="text-gray-500">Check in</label>
+								<input
+									id="stayscape-checkin"
+									type="date"
 								value={checkIn}
 								onChange={(e) => setCheckIn(e.target.value)}
 								className="w-full p-2 border-none outline-none text-gray-700"
 							/>
 						</div>
-						<div className="flex items-center space-x-2 flex-1">
+							<div className="flex items-center space-x-2 flex-1">
 							{/* <Calendar className="text-gray-400" /> */}
-							<p className="text-gray-400" >CheckOut</p>
-							<input
-								type="date"
+								<label htmlFor="stayscape-checkout" className="text-gray-500">Check out</label>
+								<input
+									id="stayscape-checkout"
+									type="date"
 								value={checkOut}
 								onChange={(e) => setCheckOut(e.target.value)}
 								className="w-full p-2 border-none outline-none text-gray-700"
 							/>
 						</div>
-						<div className="flex items-center space-x-2 flex-1">
-							<Users className="text-gray-400" />
-							<select
-								value={guests}
+							<div className="flex items-center space-x-2 flex-1">
+								<Users className="text-gray-400" aria-hidden="true" />
+								<select
+									aria-label="Guests"
+									value={guests}
 								onChange={(e) => setGuests(Number(e.target.value))}
 								className="w-full p-2 border-none outline-none text-gray-700"
 							>
@@ -96,16 +100,17 @@ const ScapeStay: React.FC = () => {
 								<option value={4}>4 guests</option>
 							</select>
 						</div>
-						<button
-							onClick={handleSearch}
+							<button
+								type="button"
+								onClick={handleSearch}
 							className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 flex items-center space-x-2"
 						>
-							<Search />
+								<Search aria-hidden="true" />
 							<span>Search</span>
 						</button>
 					</div>
 				</div>
-			</section>
+				</main>
 
 
 			{/* Footer */}
@@ -113,9 +118,9 @@ const ScapeStay: React.FC = () => {
 				<div className="max-w-7xl mx-auto text-center">
 					<p>&copy; 2023 ScapeStay. All rights reserved.</p>
 					<div className="mt-4 space-x-6">
-						<a href="#" className="hover:text-pink-500">Privacy Policy</a>
-						<a href="#" className="hover:text-pink-500">Terms of Service</a>
-						<a href="#" className="hover:text-pink-500">Contact</a>
+							<a href="#search-stays" className="hover:text-pink-500">Privacy Policy</a>
+							<a href="#search-stays" className="hover:text-pink-500">Terms of Service</a>
+							<a href="#search-stays" className="hover:text-pink-500">Contact</a>
 					</div>
 				</div>
 			</footer>

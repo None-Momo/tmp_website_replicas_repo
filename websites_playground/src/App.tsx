@@ -1,6 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import logo from './logo.svg';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import './App.css';
 import GoogleFlightsSearch from './GoogleFlights/googleflight_index';
 import YelpSearch from './Yelp/yelp_searchresults';
@@ -23,10 +22,46 @@ import { StayScapeDetails } from './StayScape/StayScape_detials';
 import { DwellioDetails } from './dwellio/dwellio_details';
 import { DynamicPage } from './amazon/dynamicPage_index';
 
+const pageTitles: Array<[RegExp, string]> = [
+  [/^\/riverbuy_details/, 'RiverBuy Product Details'],
+  [/^\/riverbuy_search/, 'RiverBuy Search Results'],
+  [/^\/riverbuy/, 'RiverBuy'],
+  [/^\/flight-results/, 'Flight Search Results'],
+  [/^\/flight_details/, 'Flight Details'],
+  [/^\/flight/, 'Flight Search'],
+  [/^\/grumble_search/, 'Grumble Search Results'],
+  [/^\/grumble/, 'Grumble'],
+  [/^\/yelp_details/, 'Grumble Business Details'],
+  [/^\/zoomcar_search/, 'ZoomCar Search Results'],
+  [/^\/zoomcar_details/, 'ZoomCar Details'],
+  [/^\/zoomcar/, 'ZoomCar'],
+  [/^\/stayscape_search/, 'StayScape Search Results'],
+  [/^\/stayscape_details/, 'StayScape Details'],
+  [/^\/stayscape/, 'StayScape'],
+  [/^\/dwellio_search/, 'Dwellio Search Results'],
+  [/^\/dwellio_details/, 'Dwellio Details'],
+  [/^\/dwellio/, 'Dwellio'],
+  [/^\/done/, 'Task Complete'],
+  [/^\/dynamic\//, 'Dynamic Page'],
+];
+
+function PageMetadata() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const match = pageTitles.find(([pattern]) => pattern.test(location.pathname));
+    document.title = match ? `${match[1]} | Fake Websites` : 'Fake Websites';
+  }, [location.pathname]);
+
+  return null;
+}
 
 function App() {
   return (
     <Router>
+      <PageMetadata />
+      <a className="skip-link" href="#main-content">Skip to main content</a>
+      <div id="main-content" tabIndex={-1}>
       <Routes>
         <Route path="/riverbuy" element={<RiverBuyClone />} />
         <Route path="/riverbuy_search" element={<RiverBuySearchPage />} />
@@ -63,8 +98,9 @@ function App() {
         <Route path="/dynamic/:pageName" element={<DynamicPage />} />
 
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/riverbuy" replace />} />
       </Routes>
+      </div>
     </Router>
   );
 }

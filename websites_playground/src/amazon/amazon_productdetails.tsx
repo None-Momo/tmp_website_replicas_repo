@@ -87,18 +87,19 @@ export default function RiverBuyProductDetail() {
 					</div>
 
 					{/* Deliver to */}
-					<div className="flex items-center text-white mr-4 cursor-pointer hover:border hover:border-white p-1">
-						<MapPin size={20} />
+					<button type="button" className="flex items-center text-white mr-4 hover:border hover:border-white p-1" aria-label="Delivery location: New York 10001">
+						<MapPin size={20} aria-hidden="true" />
 						<div className="ml-1">
 							<div className="text-xs text-gray-300">Deliver to</div>
 							<div className="text-sm font-bold">New York 10001</div>
 						</div>
-					</div>
+					</button>
 
 					{/* Search Bar */}
 					<div className="flex-1 flex">
-						<select
-							className="px-2 py-2 bg-gray-100 text-gray-700 text-sm rounded-l border-r border-gray-300 hover:bg-gray-200 cursor-pointer"
+							<select
+								aria-label="Search category"
+								className="px-2 py-2 bg-gray-100 text-gray-700 text-sm rounded-l border-r border-gray-300 hover:bg-gray-200 cursor-pointer"
 							value={selectedCategory}
 							onChange={(e) => {
 								setSelectedCategory(e.target.value)
@@ -108,58 +109,59 @@ export default function RiverBuyProductDetail() {
 								<option key={cat} value={cat}>{cat}</option>
 							))}
 						</select>
-						<input
-							type="text"
-							className="flex-1 px-3 py-2 text-gray-900"
-							placeholder="Search RiverBuy"
+							<input
+								type="text"
+								className="flex-1 px-3 py-2 text-gray-900"
+								aria-label="Search RiverBuy"
+								placeholder="Search RiverBuy"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 						/>
-						<button className="bg-orange-400 px-4 rounded-r hover:bg-orange-500">
-							<Search className="text-slate-900" size={22} />
-						</button>
+							<button type="button" className="bg-orange-400 px-4 rounded-r hover:bg-orange-500" aria-label="Search RiverBuy">
+								<Search className="text-slate-900" size={22} aria-hidden="true" />
+							</button>
 					</div>
 
 					{/* Account */}
-					<div className="flex items-center ml-4 text-white cursor-pointer hover:border hover:border-white p-1">
+					<button type="button" className="flex items-center ml-4 text-white hover:border hover:border-white p-1">
 						<div>
 							<div className="text-xs">Hello, sign in</div>
 							<div className="text-sm font-bold flex items-center">
-								Account & Lists <ChevronDown size={14} className="ml-1" />
+								Account & Lists <ChevronDown size={14} className="ml-1" aria-hidden="true" />
 							</div>
 						</div>
-					</div>
+					</button>
 
 					{/* Returns */}
-					<div className="ml-4 text-white cursor-pointer hover:border hover:border-white p-1">
+					<button type="button" className="ml-4 text-white hover:border hover:border-white p-1">
 						<div className="text-xs">Returns</div>
 						<div className="text-sm font-bold">& Orders</div>
-					</div>
+					</button>
 
 					{/* Cart */}
-					<div className="ml-4 flex items-center text-white cursor-pointer hover:border hover:border-white p-1">
+					<button type="button" className="ml-4 flex items-center text-white hover:border hover:border-white p-1" aria-label={`Cart with ${cartCount} items`}>
 						<div className="relative">
-							<ShoppingCart size={32} />
-							<span className="absolute -top-1 -right-1 bg-orange-400 text-slate-900 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+							<ShoppingCart size={32} aria-hidden="true" />
+							<span className="absolute -top-1 -right-1 bg-orange-400 text-slate-900 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold" aria-hidden="true">
 								{cartCount}
 							</span>
 						</div>
 						<span className="ml-1 font-bold">Cart</span>
-					</div>
+					</button>
 				</div>
 
 				{/* Secondary Nav */}
-				<div className="bg-slate-800 text-white flex items-center px-4 py-2 text-sm">
-					<div className="flex items-center cursor-pointer hover:border hover:border-white p-1 mr-4">
-						<Menu size={20} className="mr-1" />
+				<nav className="bg-slate-800 text-white flex items-center px-4 py-2 text-sm" aria-label="RiverBuy sections">
+					<button type="button" className="flex items-center hover:border hover:border-white p-1 mr-4">
+						<Menu size={20} className="mr-1" aria-hidden="true" />
 						<span className="font-bold">All</span>
-					</div>
+					</button>
 					<div className="flex space-x-4">
 						{['Today\'s Deals', 'Customer Service', 'Registry', 'Gift Cards', 'Sell'].map(item => (
-							<span key={item} className="cursor-pointer hover:border hover:border-white p-1">{item}</span>
+							<button type="button" key={item} className="hover:border hover:border-white p-1">{item}</button>
 						))}
 					</div>
-				</div>
+				</nav>
 			</header>
 
 			{/* Main Content */}
@@ -183,11 +185,11 @@ export default function RiverBuyProductDetail() {
 										<div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center mb-4 h-96">
 											<div className="bg-gray-200 border-2 border-dashed rounded-xl w-full h-full flex items-center justify-center">
 												{/* <span className="text-gray-500">Product Image {selectedImage + 1}</span> */}
-												<img
-													src={selectedProduct?.imageUrl || 'https://via.placeholder.com/400x400?text=No+Image'}
-													// alt={fakeProduct.images[selectedImage].alt}
-													className="max-h-full max-w-full object-contain"
-												/>
+													<img
+														src={selectedProduct?.imageUrl || 'https://via.placeholder.com/400x400?text=No+Image'}
+														alt={selectedProduct?.name || 'Selected product image'}
+														className="max-h-full max-w-full object-contain"
+													/>
 											</div>
 										</div>
 									</div>
@@ -212,34 +214,42 @@ export default function RiverBuyProductDetail() {
 										</div>
 
 										<div className="flex items-center mb-6">
-											<span className="mr-3 font-medium">Quantity:</span>
-											<div className="flex items-center border rounded">
-												<button
-													onClick={decrementQuantity}
-													className="px-3 py-1 text-gray-600 hover:bg-gray-100"
-												>
+											<span className="mr-3 font-medium" id="quantity-label">Quantity:</span>
+											<div className="flex items-center border rounded" role="group" aria-labelledby="quantity-label">
+													<button
+														type="button"
+														onClick={decrementQuantity}
+														className="px-3 py-1 text-gray-600 hover:bg-gray-100"
+														aria-label="Decrease quantity"
+													>
 													-
 												</button>
-												<span className="px-3 py-1">{quantity}</span>
-												<button
-													onClick={incrementQuantity}
-													className="px-3 py-1 text-gray-600 hover:bg-gray-100"
-												>
+												<span className="px-3 py-1" role="status" aria-live="polite" aria-label={`Quantity: ${quantity}`}>{quantity}</span>
+													<button
+														type="button"
+														onClick={incrementQuantity}
+														className="px-3 py-1 text-gray-600 hover:bg-gray-100"
+														aria-label="Increase quantity"
+													>
 													+
 												</button>
 											</div>
 										</div>
 
 										<div className="flex flex-col sm:flex-row sm:space-x-4 space-y-3 sm:space-y-0">
-											<button
-												onClick={handleAddToCart}
+												<button
+													type="button"
+													onClick={handleAddToCart}
+													aria-label={selectedProduct?.name ? `Add ${selectedProduct.name} to cart` : undefined}
 												className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-medium py-3 px-4 rounded-lg shadow hover:shadow-md transition duration-200 flex items-center justify-center"
 											>
 												Add to Cart
 											</button>
 
-											<button
-												onClick={handleBuyNow}
+												<button
+													type="button"
+													onClick={handleBuyNow}
+													aria-label={selectedProduct?.name ? `Buy ${selectedProduct.name} now` : undefined}
 												className="flex-1 bg-orange-400 hover:bg-orange-500 text-white font-medium py-3 px-4 rounded-lg shadow hover:shadow-md transition duration-200 flex items-center justify-center"
 											>
 												Buy Now
@@ -258,12 +268,12 @@ export default function RiverBuyProductDetail() {
 							<div className="mt-6 bg-white rounded-lg shadow-md p-6">
 								<h2 className="text-xl font-bold text-gray-900 mb-4">Your Cart</h2>
 								<div className="flex justify-between items-center">
-									<p className="text-gray-700">
+									<p className="text-gray-700" role="status" aria-live="polite">
 										{cartCount > 0
 											? `You have ${cartCount} item(s) in your cart`
 											: "Your cart is empty"}
 									</p>
-									<button className="text-blue-600 hover:text-blue-800 font-medium">
+									<button type="button" className="text-blue-600 hover:text-blue-800 font-medium">
 										{cartCount > 0 ? "View Cart" : "Continue Shopping"}
 									</button>
 								</div>
@@ -284,9 +294,9 @@ export default function RiverBuyProductDetail() {
 
 			{/* Footer */}
 			<footer className="bg-slate-800 text-white mt-12">
-				<div className="text-center py-4 bg-slate-700 cursor-pointer hover:bg-slate-600">
+				<a href="#main-content" className="block text-center py-4 bg-slate-700 hover:bg-slate-600">
 					<span className="text-sm">Back to top</span>
-				</div>
+				</a>
 				<div className="px-8 py-8 grid grid-cols-4 gap-8">
 					<div>
 						<h4 className="font-bold mb-2">Get to Know Us</h4>

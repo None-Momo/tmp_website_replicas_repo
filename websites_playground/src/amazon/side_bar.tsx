@@ -49,7 +49,9 @@ export const SidebarFromFile: React.FC<SidebarProps> = ({
 	const [text, setText] = useState<string>("");
 
 	useEffect(() => {
-		fetch(filePath)
+		const sourceUrl = new URL(filePath, window.location.origin).toString();
+
+		fetch(sourceUrl)
 			.then((res) => res.text())
 			.then(setText)
 			.catch((err) => {
@@ -70,6 +72,7 @@ export const SidebarFromFile: React.FC<SidebarProps> = ({
 
 	return (
 		<aside
+			aria-label="Filter results"
 			style={{
 				width: 300,
 				borderRight: "1px solid #e5e7eb",
@@ -91,7 +94,7 @@ export const SidebarFromFile: React.FC<SidebarProps> = ({
 							color: "black"
 						}}
 					>
-						<div style={{ fontWeight: 700, marginBottom: 8 }}>{group.header}</div>
+						<h3 style={{ fontWeight: 700, marginBottom: 8, marginTop: 0, fontSize: "inherit" }}>{group.header}</h3>
 						<ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
 							{group.items.map((label, idx) => {
 								const key = `${group.header}::${label}`;

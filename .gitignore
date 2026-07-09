@@ -141,3 +141,17 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# MORPH telemetry uploads (participant data — never commit)
+website_playground_server/collected_data/
+
+# macOS Finder metadata
+.DS_Store
+
+# CRA build output (regenerate with `npm run build`)
+websites_playground/build/
+
+# Python virtual envs and server cache
+.venv/
+venv/
+website_playground_server/cache/

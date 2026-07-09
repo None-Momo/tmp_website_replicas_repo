@@ -39,33 +39,34 @@ const Dwellio: React.FC = () => {
 			{/* Header */}
 			<header className="bg-white shadow-md py-4 px-6 flex justify-between items-center">
 				<div className="flex items-center space-x-2">
-					<Home className="text-blue-600 w-8 h-8" />
+						<Home className="text-blue-600 w-8 h-8" aria-hidden="true" />
 					<h1 className="text-2xl font-bold text-blue-600">Dwellio</h1>
 				</div>
 				<div className="flex items-center space-x-4">
-					<User className="text-gray-700 w-6 h-6" />
-					<button className="bg-blue-600 text-white px-4 py-2 rounded">Sign In</button>
+						<User className="text-gray-700 w-6 h-6" aria-hidden="true" />
+						<button type="button" className="bg-blue-600 text-white px-4 py-2 rounded">Sign In</button>
 				</div>
 			</header>
 
 			{/* Hero Section */}
-			<section className="bg-blue-600 text-white py-16 px-6 text-center">
+				<main className="bg-blue-600 text-white py-16 px-6 text-center">
 				<h2 className="text-4xl font-bold mb-4">Find Your Dream Home</h2>
 				<p className="text-xl mb-8">Search millions of homes for sale and rent</p>
 				<form onSubmit={handleSearch} className="max-w-md mx-auto flex space-x-2">
-					<input
-						type="text"
+						<input
+							aria-label="Search homes by city, state, or ZIP"
+							type="text"
 						placeholder="Enter city, state, or ZIP"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 						className="flex-1 px-4 py-2 rounded border-0 text-gray-900"
 					/>
-					<button type="submit" className="bg-white text-blue-600 px-4 py-2 rounded flex items-center space-x-1">
-						<Search className="w-5 h-5" />
-						<span>Search</span>
-					</button>
-				</form>
-			</section>
+						<button type="submit" className="bg-white text-blue-600 px-4 py-2 rounded flex items-center space-x-1">
+							<Search className="w-5 h-5" aria-hidden="true" />
+							<span>Search</span>
+						</button>
+					</form>
+				</main>
 
 
 		</div>

@@ -57,32 +57,35 @@ export default function ZoomCarRental() {
 					<div className="flex justify-between items-center h-16">
 						<div className="flex items-center">
 							<div className="flex items-center space-x-2">
-								<Car className="h-8 w-8 text-red-600" />
+									<Car className="h-8 w-8 text-red-600" aria-hidden="true" />
 								<span className="font-bold text-2xl text-gray-900">ZoomCar</span>
 							</div>
 						</div>
 
 						<nav className="hidden md:flex space-x-8">
-							<a href="#" className="text-gray-700 hover:text-red-600 transition-colors">Vehicles</a>
-							<a href="#" className="text-gray-700 hover:text-red-600 transition-colors">Locations</a>
-							<a href="#" className="text-gray-700 hover:text-red-600 transition-colors">Deals</a>
-							<a href="#" className="text-gray-700 hover:text-red-600 transition-colors">Business</a>
-							<a href="#" className="text-gray-700 hover:text-red-600 transition-colors">Support</a>
+							<a href="#main-content" className="text-gray-700 hover:text-red-600 transition-colors">Vehicles</a>
+							<a href="#main-content" className="text-gray-700 hover:text-red-600 transition-colors">Locations</a>
+							<a href="#main-content" className="text-gray-700 hover:text-red-600 transition-colors">Deals</a>
+							<a href="#main-content" className="text-gray-700 hover:text-red-600 transition-colors">Business</a>
+							<a href="#main-content" className="text-gray-700 hover:text-red-600 transition-colors">Support</a>
 						</nav>
 
 						<div className="hidden md:flex items-center space-x-4">
-							<button className="text-gray-700 hover:text-red-600 transition-colors">Sign In</button>
-							<button className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+							<button type="button" className="text-gray-700 hover:text-red-600 transition-colors">Sign In</button>
+							<button type="button" className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
 								Join Now
 							</button>
 						</div>
 
-						<button
-							className="md:hidden"
-							onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-						>
-							{mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-						</button>
+							<button
+								className="md:hidden"
+								type="button"
+								aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+								aria-expanded={mobileMenuOpen}
+								onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+							>
+								{mobileMenuOpen ? <X className="h-6 w-6" aria-hidden="true" /> : <Menu className="h-6 w-6" aria-hidden="true" />}
+							</button>
 					</div>
 				</div>
 
@@ -90,14 +93,14 @@ export default function ZoomCarRental() {
 				{mobileMenuOpen && (
 					<div className="md:hidden bg-white border-t">
 						<div className="px-2 pt-2 pb-3 space-y-1">
-							<a href="#" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded">Vehicles</a>
-							<a href="#" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded">Locations</a>
-							<a href="#" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded">Deals</a>
-							<a href="#" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded">Business</a>
-							<a href="#" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded">Support</a>
+							<a href="#main-content" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded">Vehicles</a>
+							<a href="#main-content" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded">Locations</a>
+							<a href="#main-content" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded">Deals</a>
+							<a href="#main-content" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded">Business</a>
+							<a href="#main-content" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded">Support</a>
 							<div className="border-t mt-2 pt-2">
-								<a href="#" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded">Sign In</a>
-								<a href="#" className="block px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 mx-3 text-center">Join Now</a>
+								<a href="#main-content" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded">Sign In</a>
+								<a href="#main-content" className="block px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 mx-3 text-center">Join Now</a>
 							</div>
 						</div>
 					</div>
@@ -105,7 +108,7 @@ export default function ZoomCarRental() {
 			</header>
 
 			{/* Hero Section */}
-			<section className="bg-gradient-to-br from-red-50 to-red-100 py-12">
+				<main className="bg-gradient-to-br from-red-50 to-red-100 py-12">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 					<div className="text-center mb-8">
 						<h1 className="text-4xl font-bold text-gray-900 mb-4">Drive Your Journey Forward</h1>
@@ -116,11 +119,12 @@ export default function ZoomCarRental() {
 					<div className="bg-white rounded-xl shadow-lg p-6 max-w-4xl mx-auto">
 						<div className="grid md:grid-cols-2 gap-4 mb-4">
 							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-2">
-									<MapPin className="inline h-4 w-4 mr-1" />
-									Pick-up Location
-								</label>
-								<input
+									<label htmlFor="zoomcar-pickup-location" className="block text-sm font-medium text-gray-700 mb-2">
+										<MapPin className="inline h-4 w-4 mr-1" aria-hidden="true" />
+										Pick-up Location
+									</label>
+									<input
+										id="zoomcar-pickup-location"
 									type="text"
 									value={pickupLocation}
 									onChange={(e) => setPickupLocation(e.target.value)}
@@ -130,11 +134,12 @@ export default function ZoomCarRental() {
 							</div>
 
 							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-2">
-									<MapPin className="inline h-4 w-4 mr-1" />
-									Return Location
-								</label>
-								<input
+									<label htmlFor="zoomcar-return-location" className="block text-sm font-medium text-gray-700 mb-2">
+										<MapPin className="inline h-4 w-4 mr-1" aria-hidden="true" />
+										Return Location
+									</label>
+									<input
+										id="zoomcar-return-location"
 									type="text"
 									value={returnLocation}
 									onChange={(e) => setReturnLocation(e.target.value)}
@@ -146,11 +151,12 @@ export default function ZoomCarRental() {
 
 						<div className="grid md:grid-cols-2 gap-4 mb-6">
 							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-2">
-									<Calendar className="inline h-4 w-4 mr-1" />
-									Pick-up Date & Time
-								</label>
-								<input
+									<label htmlFor="zoomcar-pickup-date" className="block text-sm font-medium text-gray-700 mb-2">
+										<Calendar className="inline h-4 w-4 mr-1" aria-hidden="true" />
+										Pick-up Date & Time
+									</label>
+									<input
+										id="zoomcar-pickup-date"
 									type="datetime-local"
 									value={pickupDate}
 									onChange={(e) => setPickupDate(e.target.value)}
@@ -159,11 +165,12 @@ export default function ZoomCarRental() {
 							</div>
 
 							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-2">
-									<Calendar className="inline h-4 w-4 mr-1" />
-									Return Date & Time
-								</label>
-								<input
+									<label htmlFor="zoomcar-return-date" className="block text-sm font-medium text-gray-700 mb-2">
+										<Calendar className="inline h-4 w-4 mr-1" aria-hidden="true" />
+										Return Date & Time
+									</label>
+									<input
+										id="zoomcar-return-date"
 									type="datetime-local"
 									value={returnDate}
 									onChange={(e) => setReturnDate(e.target.value)}
@@ -172,15 +179,15 @@ export default function ZoomCarRental() {
 							</div>
 						</div>
 
-						<button className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold flex items-center justify-center"
-							onClick={handleSearch}
-						>
-							Search Available Cars
-							<ChevronRight className="ml-2 h-5 w-5" />
-						</button>
+							<button type="button" className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold flex items-center justify-center"
+								onClick={handleSearch}
+							>
+								Search Available Cars
+								<ChevronRight className="ml-2 h-5 w-5" aria-hidden="true" />
+							</button>
+						</div>
 					</div>
-				</div>
-			</section>
+				</main>
 
 			{/* Vehicle Categories */}
 			<section className="py-12">
@@ -191,7 +198,10 @@ export default function ZoomCarRental() {
 					<div className="flex flex-wrap justify-center gap-2 mb-8">
 						{categories.map((category) => (
 							<button
+								type="button"
 								key={category}
+								aria-pressed={selectedCategory === category}
+								aria-label={`Filter fleet by ${category === 'All' ? 'all categories' : category}`}
 								onClick={() => setSelectedCategory(category)}
 								className={`px-4 py-2 rounded-lg transition-colors ${selectedCategory === category
 									? 'bg-red-600 text-white'
@@ -222,7 +232,7 @@ export default function ZoomCarRental() {
 
 									<div className="flex items-center gap-4 my-4 text-sm text-gray-600">
 										<span className="flex items-center">
-											<Users className="h-4 w-4 mr-1" />
+											<Users className="h-4 w-4 mr-1" aria-hidden="true" />
 											{vehicle.seats} seats
 										</span>
 										<span>{vehicle.transmission}</span>
@@ -236,7 +246,8 @@ export default function ZoomCarRental() {
 										))}
 									</div>
 
-									<button className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors"
+									<button type="button" className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors"
+										aria-label={`Select ${vehicle.name}, $${vehicle.price} per day`}
 										onClick={() => navigate(`/done`)}>
 										Select Vehicle
 									</button>
@@ -255,7 +266,7 @@ export default function ZoomCarRental() {
 						<div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-6 text-white">
 							<h3 className="text-2xl font-bold mb-2">Weekend Special</h3>
 							<p className="mb-4">Get 25% off on weekend rentals. Book Friday through Monday and save!</p>
-							<button className="bg-white text-red-600 px-6 py-2 rounded-lg hover:bg-gray-100 transition-colors font-semibold">
+							<button type="button" aria-label="Learn more about the Weekend Special offer" className="bg-white text-red-600 px-6 py-2 rounded-lg hover:bg-gray-100 transition-colors font-semibold">
 								Learn More
 							</button>
 						</div>
@@ -263,7 +274,7 @@ export default function ZoomCarRental() {
 						<div className="bg-gradient-to-r from-gray-700 to-gray-900 rounded-lg p-6 text-white">
 							<h3 className="text-2xl font-bold mb-2">Monthly Rentals</h3>
 							<p className="mb-4">Save up to 40% on monthly rentals. Perfect for extended stays!</p>
-							<button className="bg-white text-gray-900 px-6 py-2 rounded-lg hover:bg-gray-100 transition-colors font-semibold">
+							<button type="button" aria-label="Learn more about Monthly Rentals" className="bg-white text-gray-900 px-6 py-2 rounded-lg hover:bg-gray-100 transition-colors font-semibold">
 								Learn More
 							</button>
 						</div>
@@ -277,7 +288,7 @@ export default function ZoomCarRental() {
 					<div className="grid md:grid-cols-4 gap-8">
 						<div>
 							<div className="flex items-center space-x-2 mb-4">
-								<Car className="h-8 w-8 text-red-500" />
+								<Car className="h-8 w-8 text-red-500" aria-hidden="true" />
 								<span className="font-bold text-2xl">ZoomCar</span>
 							</div>
 							<p className="text-gray-400">Your trusted partner for car rentals worldwide.</p>
@@ -286,20 +297,20 @@ export default function ZoomCarRental() {
 						<div>
 							<h4 className="font-semibold text-lg mb-4">Company</h4>
 							<ul className="space-y-2 text-gray-400">
-								<li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
-								<li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
-								<li><a href="#" className="hover:text-white transition-colors">Press</a></li>
-								<li><a href="#" className="hover:text-white transition-colors">Investor Relations</a></li>
+								<li><a href="#main-content" className="hover:text-white transition-colors">About Us</a></li>
+								<li><a href="#main-content" className="hover:text-white transition-colors">Careers</a></li>
+								<li><a href="#main-content" className="hover:text-white transition-colors">Press</a></li>
+								<li><a href="#main-content" className="hover:text-white transition-colors">Investor Relations</a></li>
 							</ul>
 						</div>
 
 						<div>
 							<h4 className="font-semibold text-lg mb-4">Support</h4>
 							<ul className="space-y-2 text-gray-400">
-								<li><a href="#" className="hover:text-white transition-colors">Help Center</a></li>
-								<li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
-								<li><a href="#" className="hover:text-white transition-colors">FAQs</a></li>
-								<li><a href="#" className="hover:text-white transition-colors">Terms & Conditions</a></li>
+								<li><a href="#main-content" className="hover:text-white transition-colors">Help Center</a></li>
+								<li><a href="#main-content" className="hover:text-white transition-colors">Contact Us</a></li>
+								<li><a href="#main-content" className="hover:text-white transition-colors">FAQs</a></li>
+								<li><a href="#main-content" className="hover:text-white transition-colors">Terms & Conditions</a></li>
 							</ul>
 						</div>
 
@@ -307,18 +318,18 @@ export default function ZoomCarRental() {
 							<h4 className="font-semibold text-lg mb-4">Connect</h4>
 							<div className="space-y-2 text-gray-400">
 								<p className="flex items-center">
-									<Phone className="h-4 w-4 mr-2" />
+									<Phone className="h-4 w-4 mr-2" aria-hidden="true" />
 									1-800-ZOOMCAR
 								</p>
 								<p className="flex items-center">
-									<Mail className="h-4 w-4 mr-2" />
+									<Mail className="h-4 w-4 mr-2" aria-hidden="true" />
 									support@zoomcar.com
 								</p>
 							</div>
 							<div className="flex space-x-4 mt-4">
-								<a href="#" className="text-gray-400 hover:text-white transition-colors">Facebook</a>
-								<a href="#" className="text-gray-400 hover:text-white transition-colors">Twitter</a>
-								<a href="#" className="text-gray-400 hover:text-white transition-colors">Instagram</a>
+								<a href="#main-content" className="text-gray-400 hover:text-white transition-colors">Facebook</a>
+								<a href="#main-content" className="text-gray-400 hover:text-white transition-colors">Twitter</a>
+								<a href="#main-content" className="text-gray-400 hover:text-white transition-colors">Instagram</a>
 							</div>
 						</div>
 					</div>

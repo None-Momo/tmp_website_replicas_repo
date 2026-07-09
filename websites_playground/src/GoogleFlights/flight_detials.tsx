@@ -6,14 +6,17 @@ export const FlightDetails: React.FC = () => {
 	const location = useLocation();
 	const flightData = location?.state?.flight_data;
 
-	return (<div onClick={() => navigate("/done")}>
+	// Removed the whole-page onClick that sent ANY click to /done, so reaching
+	// the correct flight details no longer abandons the page on the next click.
+	// The explicit "Buy" button carries the intentional booking action.
+	return (<div>
 		{flightData ? (
 			<div className="min-h-screen bg-gray-50">
 				{/* Header */}
 				<header className="bg-white text-white py-4 px-6">
 					<div className="container mx-auto flex justify-between items-center">
 						<div className="flex items-center space-x-2 ">
-							<span className="font-bold text-2xl text-gray-900">Google Flights</span>
+							<h1 className="font-bold text-2xl text-gray-900">Google Flights</h1>
 						</div>
 					</div>
 				</header>
@@ -25,7 +28,7 @@ export const FlightDetails: React.FC = () => {
 								{flightData.airlineLogo}
 							</div>
 							<div>
-								<div className="font-semibold text-lg">{flightData.airline}</div>
+								<h2 className="font-semibold text-lg">{flightData.airline}</h2>
 								<div className="text-sm text-gray-600">{flightData.class}</div>
 							</div>
 						</div>
@@ -44,6 +47,7 @@ export const FlightDetails: React.FC = () => {
 						</div>
 						<button
 							type="button"
+							aria-label={`Buy ${flightData.airline} flight from ${flightData.departure} to ${flightData.arrival} for $${flightData.price}`}
 							className="mt-2 md:mt-0 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
 						>
 							Buy

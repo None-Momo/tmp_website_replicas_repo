@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { naiveMatch, pickBestFileWithDeepseek } from '../utils/pickbestfileDeepseek';
-import { DEEPSEEK_API_KEY } from '../utils/deepseek_key';
+import { pickBestLocalFile } from '../utils/pickbestfileDeepseek';
 import HtmlSnippets from '../amazon/htlmSnippersAmazon';
 import Map from './map_comp';
 
@@ -237,12 +236,8 @@ export default function YelpSearch() {
           // "amazon_shoe_results_inlined.txt"
         ];
 
-        const sidenavbarFileNames = [
-
-        ];
-  const bestFile = (await pickBestFileWithDeepseek(newSearchQuery, fileNames, DEEPSEEK_API_KEY).catch(e => { console.error(e); return null; }))?.best;
+        const bestFile = pickBestLocalFile(newSearchQuery, fileNames);
         console.log('Best file for query:', newSearchQuery, 'is', bestFile);
-        if (!bestFile) naiveMatch(newSearchQuery, fileNames);
 
         if (!cancelled) {
           const src = bestFile ? `/scraped_data/${bestFile}` : "";
@@ -323,14 +318,14 @@ export default function YelpSearch() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-bold">grumble</h1>
-              <nav className="hidden md:flex space-x-6">
-                <button className="hover:text-red-200">For Business</button>
-                <button className="hover:text-red-200">Write a Review</button>
-              </nav>
+	              <nav className="hidden md:flex space-x-6" aria-label="Grumble business links">
+	                <button type="button" className="hover:text-red-200">For Business</button>
+	                <button type="button" className="hover:text-red-200">Write a Review</button>
+	              </nav>
             </div>
             <div className="flex items-center space-x-4">
-              <button className="hover:text-red-200">Sign In</button>
-              <button className="bg-white text-red-600 px-4 py-2 rounded-md font-medium hover:bg-gray-100">
+	              <button type="button" className="hover:text-red-200">Sign In</button>
+	              <button type="button" className="bg-white text-red-600 px-4 py-2 rounded-md font-medium hover:bg-gray-100">
                 Sign Up
               </button>
             </div>
@@ -344,15 +339,16 @@ export default function YelpSearch() {
           <div className="bg-white rounded-lg shadow-lg p-2 flex items-center">
             <div className="flex-1 flex items-center border-r">
               <span className="text-gray-500 px-3">Find</span>
-              <input
-                type="text"
-                placeholder="Coffee shops, cold brew, espresso..."
+	              <input
+	                type="text"
+	                aria-label="Search Grumble"
+	                placeholder="Coffee shops, cold brew, espresso..."
                 className="flex-1 px-2 py-2 outline-none"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <button className="bg-red-600 text-white px-6 py-2 rounded-md ml-2 hover:bg-red-700">
+	            <button type="button" className="bg-red-600 text-white px-6 py-2 rounded-md ml-2 hover:bg-red-700">
               Search
             </button>
           </div>
@@ -362,14 +358,17 @@ export default function YelpSearch() {
       {/* Filters */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4" role="group" aria-label="Filter search results">
             <span className="text-gray-700 font-medium">Filters:</span>
 
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">Price:</span>
-              {[1, 2, 3, 4].map((price) => (
-                <button
-                  key={price}
+	              {[1, 2, 3, 4].map((price) => (
+	                <button
+	                  type="button"
+	                  key={price}
+	                  aria-pressed={selectedPrice === price}
+	                  aria-label={`Price level ${price} of 4`}
                   onClick={() => setSelectedPrice(selectedPrice === price ? null : price)}
                   className={`px-3 py-1 rounded-full text-sm border ${selectedPrice === price
                     ? 'bg-red-600 text-white border-red-600'
@@ -383,9 +382,12 @@ export default function YelpSearch() {
 
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">Min Rating:</span>
-              {[4, 3].map((rating) => (
-                <button
-                  key={rating}
+	              {[4, 3].map((rating) => (
+	                <button
+	                  type="button"
+	                  key={rating}
+	                  aria-pressed={selectedRating === rating}
+	                  aria-label={`Minimum rating ${rating} stars`}
                   onClick={() => setSelectedRating(selectedRating === rating ? null : rating)}
                   className={`px-3 py-1 rounded-full text-sm border ${selectedRating === rating
                     ? 'bg-red-600 text-white border-red-600'
@@ -402,14 +404,14 @@ export default function YelpSearch() {
 
 
       {/* Main Content */}
-      <div className="grid grid-cols-2 gap-2">
+	      <main className="grid grid-cols-2 gap-2">
 
         <div className="flex-1 p-4" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
 
           {raw ? (
             <div className="border-l border-gray-200 p-4" >
               <div className="mb-4 pb-2 border-b">
-                <h3 className="text-lg font-medium">Search Results for "{searchTerm}"</h3>
+                <h2 className="text-lg font-medium">Search Results for "{searchTerm}"</h2>
               </div>
               <div className="mb-4">
                 <HtmlSnippets source={raw} navigateToDetails={(product) => {
@@ -438,12 +440,13 @@ export default function YelpSearch() {
 
         </div>
         <div className=" rounded-2xl overflow-hidden shadow-lg">
-          <iframe
-            className="w-full h-full"
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3153.0862258362896!2d-122.41941528468172!3d37.77492927975998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8085809c5b21c1b9%3A0xb6f8a6df356d3e57!2sSan+Francisco%2C+CA!5e0!3m2!1sen!2sus!4v1632895637890!5m2!1sen!2sus"
+	          <iframe
+	            className="w-full h-full"
+	            title="Map of Grumble search results"
+	            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3153.0862258362896!2d-122.41941528468172!3d37.77492927975998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8085809c5b21c1b9%3A0xb6f8a6df356d3e57!2sSan+Francisco%2C+CA!5e0!3m2!1sen!2sus!4v1632895637890!5m2!1sen!2sus"
             allowFullScreen
-            loading="lazy"
-          ></iframe>
+	            loading="lazy"
+	          ></iframe>
           {/* <Map
             className="w-full h-96" // important: give it a height
             center={[37.7749, -122.4194]}
@@ -453,11 +456,9 @@ export default function YelpSearch() {
               { lat: 37.8199, lng: -122.4783, popup: "Golden Gate Bridge" },
             ]}
           /> */}
-        </div>
+	        </div>
+		      </main>
 
-      </div>
-
-
-    </div>
+	    </div>
   );
 }

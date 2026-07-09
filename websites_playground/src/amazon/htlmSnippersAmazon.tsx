@@ -101,6 +101,59 @@ export interface HtmlSnippetsProps {
 
 }
 
+/** Parse a sidebar price-range label like "Up to $15", "$20 to $40",
+ *  "$400 & above" into a numeric range; null for non-price labels. */
+function parsePriceRangeLabel(label: string): { min: number; max: number } | null {
+	if (!label.includes("$")) return null;
+	const nums = (label.match(/\$\s?(\d+(?:\.\d+)?)/g) || []).map(s => parseFloat(s.replace(/[^0-9.]/g, "")));
+	if (nums.length === 0) return null;
+	const lower = label.toLowerCase();
+	if (/up to/.test(lower)) return { min: 0, max: nums[0] };
+	if (/above|over|\+/.test(lower)) return { min: nums[0], max: Infinity };
+	if (nums.length >= 2) return { min: Math.min(nums[0], nums[1]), max: Math.max(nums[0], nums[1]) };
+	return null;
+}
+
+/** First dollar amount in a snippet = its current price (the a-offscreen
+ *  current price precedes the strikethrough list price in Amazon markup). */
+function extractSnippetPrice(html: string): number | null {
+	const match = html.match(/\$\s?(\d{1,5}(?:\.\d{1,2})?)/);
+	return match ? parseFloat(match[1]) : null;
+}
+
+/** Extract a human title from a result snippet (product name, business name,
+ *  etc.) so each card gets a unique accessible name. Works for both the Amazon
+ *  product markup and the Yelp/Grumble business markup this component renders.
+ *  Falls back to the image alt text or the first substantial text run. */
+function extractSnippetTitle(html: string): string {
+	try {
+		const doc = new DOMParser().parseFromString(html, 'text/html');
+		const root = doc.querySelector('.snippet') ?? doc.body ?? doc;
+		const getText = (el: Element | null) => (el?.textContent || '').trim().replace(/\s+/g, ' ');
+		const candidates = [
+			'[data-cy="title-recipe"] h2 span',
+			'h2 span',
+			'h2', 'h3', 'h4',
+			'a[href] span',
+		];
+		for (const sel of candidates) {
+			const t = getText(root.querySelector(sel));
+			if (t && t.length >= 3) return t.slice(0, 90);
+		}
+		const alt = root.querySelector('img[alt]')?.getAttribute('alt')?.trim();
+		if (alt && alt.length >= 3) return alt.slice(0, 90);
+		const raw = getText(root as Element);
+		return raw ? raw.slice(0, 60) : '';
+	} catch {
+		return '';
+	}
+}
+
+/** Slugify a title for a stable, unique data-testid. */
+function slugifyTitle(title: string): string {
+	return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 50);
+}
+
 /** Heuristics to split a big text file into discrete HTML snippets */
 function splitSnippets(text: string, delimiter?: string): string[] {
 	if (delimiter) {
@@ -124,11 +177,18 @@ function splitSnippets(text: string, delimiter?: string): string[] {
 
 /** Sanitize HTML safely before injecting into the DOM */
 function sanitize(html: string): string {
-	return DOMPurify.sanitize(html, {
-		USE_PROFILES: { html: true },
-		ADD_ATTR: ["target", "rel", "aria-label", "role", "data-*"],
-	});
-}
+		const clean = DOMPurify.sanitize(html, {
+			USE_PROFILES: { html: true },
+			ADD_ATTR: ["target", "rel", "aria-label", "role", "alt", "data-*"],
+		});
+
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(clean, "text/html");
+		doc.querySelectorAll("img:not([alt])").forEach((img) => {
+			img.setAttribute("alt", "");
+		});
+		return doc.body.innerHTML;
+	}
 
 export const HtmlSnippets: React.FC<HtmlSnippetsProps> = ({
 	source,
@@ -158,7 +218,9 @@ export const HtmlSnippets: React.FC<HtmlSnippetsProps> = ({
 		// fetch the raw text file
 		let cancelled = false;
 
-		fetch(source)
+		const sourceUrl = new URL(source, window.location.origin).toString();
+
+		fetch(sourceUrl)
 			.then(r => {
 				if (!r.ok) throw new Error(`Fetch failed: ${r.status} ${r.statusText}`);
 				return r.text();
@@ -183,6 +245,7 @@ export const HtmlSnippets: React.FC<HtmlSnippetsProps> = ({
 
 	// Derive the flag after `filtered` exists — and log each factor.
 	const llmEnabled = React.useMemo(() => {
+		const backendRankingEnabled = typeof window !== "undefined" && (window as any).ENABLE_LLM_RERANK === true;
 		const modeOk = renderMode !== "iframe" && renderMode !== "detail";
 		const hasQuery = typeof query === "string" && query.trim().length > 0;
 		const hasSnippets = Array.isArray(filtered) && filtered.length > 0;
@@ -199,7 +262,7 @@ export const HtmlSnippets: React.FC<HtmlSnippetsProps> = ({
 			});
 		}
 
-		return modeOk && hasQuery && hasSnippets;
+		return backendRankingEnabled && modeOk && hasQuery && hasSnippets;
 		// Depend on the *array* (not only length) so this recomputes if the array object changes.
 	}, [renderMode, query, filtered]);
 
@@ -220,22 +283,38 @@ export const HtmlSnippets: React.FC<HtmlSnippetsProps> = ({
 
 	//log loading state
 	useEffect(() => {
-		if (!loading && ranked && ranked.length > 0) {
-			console.log("LLM ranking completed.");
+		if (!loading && filtered.length > 0) {
+			if (ranked && ranked.length > 0) {
+				console.log("LLM ranking completed.");
+			}
+			if (llmErr) {
+				console.warn("LLM ranking failed; showing static results.", llmErr);
+			}
 			setResultsLoaded && setResultsLoaded(true);
 		}
-		if (ranked) {
-			console.log("LLM ranking in progress...");
-		}
+	}, [filtered.length, ranked, llmErr, setResultsLoaded, loading]);
 
-	}, [ranked, setResultsLoaded, loading]);
+	const toShow = ranked?.length ? ranked.map(r => r.html) : filtered;
 
-	const toShow = ranked?.length && !loading ? ranked.map(r => r.html) : [];
+	const cleaned = useMemo(() => toShow.map(h => sanitize(h)), [toShow]);
 
+	const matchesSelectedFilters = (clean: string) => {
+		if (selectedFilters.length === 0) return true;
+		return selectedFilters.some(filter => {
+			const range = parsePriceRangeLabel(filter);
+			if (range) {
+				const price = extractSnippetPrice(clean);
+				return price !== null && price >= range.min && price <= range.max;
+			}
+			return clean.toLowerCase().includes(filter.toLowerCase());
+		});
+	};
+
+	const visibleCount = cleaned.filter(matchesSelectedFilters).length;
 
 	if (error) {
 		return (
-			<div className="p-4 rounded bg-red-50 text-red-700">
+			<div className="p-4 rounded bg-red-50 text-red-700" role="alert">
 				Failed to load snippets: {error}
 			</div>
 		);
@@ -245,9 +324,21 @@ export const HtmlSnippets: React.FC<HtmlSnippetsProps> = ({
 	return (
 		<section className={["w-full", className].join(" ")}>
 
+			{/* Make each result card a single reliable click target: the injected
+			    snippet HTML contains its own links, so a click landing on a child
+			    link bypassed the card's "open details" navigation. Disabling
+			    pointer events on descendants routes every click to the card. */}
+			<style>{`article[data-testid^="result-card"] * { pointer-events: none; }`}</style>
+
 			{!raw && (
-				<div className="text-sm text-gray-500">Loading… {renderMode} </div>
+				<div className="text-sm text-gray-500" role="status">Loading… {renderMode} </div>
 			)}
+
+			{/* Announce how many results are shown so screen reader users hear
+			    when results load or a filter changes what is visible. */}
+			<p className="sr-only" role="status" aria-live="polite">
+				{raw && !loading ? `${visibleCount} result${visibleCount === 1 ? '' : 's'} shown` : ''}
+			</p>
 
 			<div className={orientation == "grid" ?
 				"grid gap-4 md:grid-cols-2 xl:grid-cols-3"
@@ -273,27 +364,21 @@ export const HtmlSnippets: React.FC<HtmlSnippetsProps> = ({
 						</div>
 					</div>
 				)}
-				{!loading && toShow.map((html, idx) => {
-					const clean = sanitize(html);
-
-					// console.log("Rendering snippet", { idx });
-
-					// console.log("Selected filters:", selectedFilters);
-					//check if there is a filter applied and if the snippet contains the filter text
-					if (selectedFilters.length > 0) {
-						const matchesFilter = selectedFilters.some(filter =>
-							clean.toLowerCase().includes(filter.toLowerCase())
-						);
-						console.log(`Snippet ${idx} matches filter:`, matchesFilter);
-						if (!matchesFilter) {
-							return null; // Skip this snippet if it doesn't match any filter
-						}
+				{cleaned.map((clean, idx) => {
+					// Price-range labels ("Up to $15", "$20 to $40", "$400 & above")
+					// never appear verbatim in product snippets, so plain substring
+					// matching made every price filter return zero results. Parse
+					// those labels into numeric ranges and compare against the
+					// snippet's first listed price (the current, non-strikethrough
+					// one); all other labels keep substring semantics.
+					if (!matchesSelectedFilters(clean)) {
+						return null; // Skip this snippet if it doesn't match any filter
 					}
 					if (renderMode === "iframe") {
 						// strongest isolation; heavier and cannot inherit styles easily
-						return (<iframe
-							key={idx}
-							title={`snippet-${idx}`}
+							return (<iframe
+								key={idx}
+								title={`Search result ${idx + 1}`}
 							sandbox="allow-popups allow-popups-to-escape-sandbox allow-forms allow-pointer-lock allow-same-origin allow-scripts"
 							srcDoc={customCSSProp ? makeSrcDoc(clean, customCSSProp) : makeSrcDoc(clean, customCSS)}
 							className="w-full min-h-[460px] rounded border"
@@ -310,14 +395,33 @@ export const HtmlSnippets: React.FC<HtmlSnippetsProps> = ({
 					}
 
 					// fast path: sanitized innerHTML
-					return (
-						<article
-							onClick={(e) => {
-								// console.log("Snippet clicked", { idx });
-								e.preventDefault();
-								navigateToDetails?.(customCSSProp ? makeSrcDoc(clean, customCSSProp) : makeSrcDoc(clean, customCSS))
-							}}
-							key={idx}
+						// Give each card a UNIQUE accessible name (its product /
+						// business title) plus a price hint, so an agent or screen
+						// reader can target the specific item instead of an ambiguous
+						// "Open search result N". This is what lets MORPH click the
+						// intended row rather than the first match.
+						const cardTitle = extractSnippetTitle(clean);
+						const cardPrice = extractSnippetPrice(clean);
+						const cardLabel = cardTitle
+							? `Open details for ${cardTitle}${cardPrice !== null ? `, priced at $${cardPrice}` : ''}`
+							: `Open search result ${idx + 1}`;
+						return (
+							<article
+								onClick={(e) => {
+									// console.log("Snippet clicked", { idx });
+									e.preventDefault();
+									navigateToDetails?.(customCSSProp ? makeSrcDoc(clean, customCSSProp) : makeSrcDoc(clean, customCSS))
+								}}
+								onKeyDown={(e) => {
+									if (e.key !== "Enter" && e.key !== " ") return;
+									e.preventDefault();
+									navigateToDetails?.(customCSSProp ? makeSrcDoc(clean, customCSSProp) : makeSrcDoc(clean, customCSS));
+								}}
+								role={navigateToDetails ? "button" : undefined}
+								tabIndex={navigateToDetails ? 0 : undefined}
+								aria-label={cardLabel}
+								data-testid={cardTitle ? `result-card-${slugifyTitle(cardTitle)}` : `result-card-${idx + 1}`}
+								key={idx}
 							// className="rounded border p-3 bg-white"
 							// eslint-disable-next-line react/no-danger
 							dangerouslySetInnerHTML={{ __html: customCSSProp ? makeSrcDoc(clean, customCSSProp) : makeSrcDoc(clean, customCSS) }}
@@ -327,7 +431,7 @@ export const HtmlSnippets: React.FC<HtmlSnippetsProps> = ({
 			</div>
 
 			{filtered.length === 0 && raw && (
-				<p className="mt-4 text-sm text-gray-500">
+				<p className="mt-4 text-sm text-gray-500" role="status">
 					No snippets match your filter.
 				</p>
 			)}

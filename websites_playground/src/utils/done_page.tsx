@@ -6,11 +6,12 @@ export const DonePage: React.FC = () => {
 
 	return (
 		<div className="flex flex-col items-center justify-center min-h-screen bg-green-50 p-4">
-			<div className="bg-white p-8 rounded-lg shadow-md text-center">
+			<div className="bg-white p-8 rounded-lg shadow-md text-center" role="status">
 				<h1 className="text-3xl font-bold mb-4 text-green-600">Thank You!</h1>
 				<p className="text-lg text-gray-700 mb-6">Your submission has been received successfully.</p>
 				<div className="mb-6">
 					<svg
+						aria-hidden="true"
 						className="w-16 h-16 text-green-500 mx-auto"
 						fill="none"
 						stroke="currentColor"

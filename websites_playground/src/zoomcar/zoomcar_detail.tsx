@@ -19,7 +19,9 @@ export const ZoomcarDetail: React.FC = () => {
 	}, [location]);
 
 
-	return (<div onClick={() => navigate("/done")}>
+	// Removed whole-page onClick -> /done (a click-trap): the "open its details"
+	// task should stay on the details page, not jump to /done on any click.
+	return (<div>
 		{/* <h1>Zoomcar Detail Page</h1> */}
 		{carData ? (
 			<div className="min-h-screen bg-gray-50">
@@ -27,18 +29,19 @@ export const ZoomcarDetail: React.FC = () => {
 				<header className="bg-white text-white py-4 px-6">
 					<div className="container mx-auto flex justify-between items-center">
 						<div className="flex items-center space-x-2 ">
-							<Car className="h-8 w-8 text-red-600" />
+							<Car className="h-8 w-8 text-red-600" aria-hidden="true" />
 							<span className="font-bold text-2xl text-gray-900">ZoomCar</span>
 						</div>
-						<nav>
+						<nav aria-label="ZoomCar sections">
 							<ul className="flex space-x-6">
-								<li className="hover:underline cursor-pointer">Locations</li>
-								<li className="hover:underline cursor-pointer">Deals</li>
-								<li className="hover:underline cursor-pointer">My Account</li>
+								<li><button type="button" className="hover:underline">Locations</button></li>
+								<li><button type="button" className="hover:underline">Deals</button></li>
+								<li><button type="button" className="hover:underline">My Account</button></li>
 							</ul>
 						</nav>
 					</div>
 				</header>
+				<h1 className="sr-only">Car rental details</h1>
 				{/* <h1>Selected Car</h1> */}
 				{/* Render other car details here */}
 				<div dangerouslySetInnerHTML={{ __html: carData }} />

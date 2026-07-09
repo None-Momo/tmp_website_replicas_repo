@@ -27,8 +27,11 @@ const RiverBuyClone: React.FC = () => {
     'All', 'Electronics', 'Clothing', 'Books', 'Home & Kitchen', 'Sports', 'Toys & Games', 'Beauty', 'Automotive'
   ];
 
+  // Note: 'Wireless Bluetooth Headphones with Noise Cancelling' was removed from
+  // this homepage Best Sellers list because it interfered with MORPH search-task
+  // testing. Search results and product detail pages use their own data sources
+  // (the /riverbuy_search route + snippet/backend data), so they are unaffected.
   const products: Product[] = [
-    { id: 1, title: 'Wireless Bluetooth Headphones with Noise Cancelling', price: 89.99, rating: 4.5, reviews: 2847, prime: true, discount: 20, image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" },
     { id: 2, title: 'Smart Watch with Heart Rate Monitor', price: 199.99, rating: 4.3, reviews: 1523, prime: true, image: "https://images.unsplash.com/photo-1532288744908-b37abee2ed71?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" },
     { id: 3, title: 'Portable Charger 20000mAh Power Bank', price: 29.99, rating: 4.6, reviews: 5621, prime: true, discount: 35, image: "https://plus.unsplash.com/premium_photo-1715115406713-fd67ecea8dcc?q=80&w=786&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" },
     { id: 4, title: 'Ergonomic Office Chair with Lumbar Support', price: 249.99, rating: 4.2, reviews: 892, prime: false, image: "https://images.unsplash.com/photo-1688578735352-9a6f2ac3b70a?q=80&w=774&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" },
@@ -46,6 +49,7 @@ const RiverBuyClone: React.FC = () => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
+        aria-hidden="true"
         className={`w-3 h-3 ${i < Math.floor(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
       />
     ));
@@ -63,17 +67,18 @@ const RiverBuyClone: React.FC = () => {
           </div>
 
           {/* Deliver to */}
-          <div className="hidden md:flex items-center text-white ml-4 cursor-pointer hover:border hover:border-white p-2">
-            <MapPin className="w-5 h-5 mr-1" />
+          <button type="button" className="hidden md:flex items-center text-white ml-4 hover:border hover:border-white p-2" aria-label="Delivery location: New York 10001">
+            <MapPin className="w-5 h-5 mr-1" aria-hidden="true" />
             <div className="text-xs">
               <div className="text-gray-400">Deliver to</div>
               <div className="font-bold">New York 10001</div>
             </div>
-          </div>
+          </button>
 
           {/* Search Bar */}
           <div className="flex-1 flex mx-4">
             <select
+              aria-label="Search category"
               className="px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded-l border-r border-gray-300"
               value={selectedCategory}
               onChange={(e: { target: { value: any; }; }) => {
@@ -91,6 +96,7 @@ const RiverBuyClone: React.FC = () => {
             <input
               type="text"
               className="flex-1 px-3 py-2 text-gray-900"
+              aria-label="Search RiverBuy"
               placeholder="Search RiverBuy"
               value={searchQuery}
               onChange={(e) => {
@@ -101,66 +107,68 @@ const RiverBuyClone: React.FC = () => {
                 if (e.key === 'Enter') {
 
                   //TODO: add a loading delay before navigating
-                  navigate(`/RiverBuy_search?query=${encodeURIComponent(searchQuery)}&category=${selectedCategory}`);
+                  navigate(`/riverbuy_search?query=${encodeURIComponent(searchQuery)}&category=${selectedCategory}`);
                 }
               }}
 
 
             />
             <button className="bg-orange-400 px-4 rounded-r hover:bg-orange-500"
+              type="button"
+              aria-label="Search RiverBuy"
 
               onClick={(e) => {
                 e.preventDefault();
-                navigate(`/RiverBuy_search?query=${encodeURIComponent(searchQuery)}&category=${selectedCategory}`);
+                navigate(`/riverbuy_search?query=${encodeURIComponent(searchQuery)}&category=${selectedCategory}`);
               }}>
-              <Search className="w-5 h-5 text-gray-900" />
+              <Search className="w-5 h-5 text-gray-900" aria-hidden="true" />
             </button>
           </div>
 
           {/* Account & Lists */}
-          <div className="hidden md:flex items-center text-white mx-3 cursor-pointer hover:border hover:border-white p-2">
+          <button type="button" className="hidden md:flex items-center text-white mx-3 hover:border hover:border-white p-2">
             <div className="text-xs">
               <div>Hello, Sign in</div>
               <div className="font-bold flex items-center">
-                Account & Lists <ChevronDown className="w-3 h-3 ml-1" />
+                Account & Lists <ChevronDown className="w-3 h-3 ml-1" aria-hidden="true" />
               </div>
             </div>
-          </div>
+          </button>
 
           {/* Returns & Orders */}
-          <div className="hidden md:flex items-center text-white mx-3 cursor-pointer hover:border hover:border-white p-2">
+          <button type="button" className="hidden md:flex items-center text-white mx-3 hover:border hover:border-white p-2">
             <div className="text-xs">
               <div>Returns</div>
               <div className="font-bold">& Orders</div>
             </div>
-          </div>
+          </button>
 
           {/* Cart */}
-          <div className="flex items-center text-white mx-3 cursor-pointer hover:border hover:border-white p-2">
+          <button type="button" className="flex items-center text-white mx-3 hover:border hover:border-white p-2" aria-label={`Cart with ${cartCount} items`}>
             <div className="relative">
-              <ShoppingCart className="w-8 h-8" />
-              <span className="absolute -top-2 -right-2 bg-orange-400 text-gray-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              <ShoppingCart className="w-8 h-8" aria-hidden="true" />
+              <span className="absolute -top-2 -right-2 bg-orange-400 text-gray-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center" aria-hidden="true">
                 {cartCount}
               </span>
             </div>
             <span className="font-bold ml-1 hidden md:inline">Cart</span>
-          </div>
+          </button>
         </div>
 
         {/* Navigation Bar */}
-        <nav className="bg-gray-800 text-white px-4 py-2 flex items-center space-x-6 text-sm">
-          <div className="flex items-center cursor-pointer hover:border hover:border-white p-1">
-            <Menu className="w-5 h-5 mr-1" />
+        <nav className="bg-gray-800 text-white px-4 py-2 flex items-center space-x-6 text-sm" aria-label="RiverBuy sections">
+          <button type="button" className="flex items-center hover:border hover:border-white p-1">
+            <Menu className="w-5 h-5 mr-1" aria-hidden="true" />
             <span>All</span>
-          </div>
-          <span className="cursor-pointer hover:border hover:border-white p-1">Today's Deals</span>
-          <span className="cursor-pointer hover:border hover:border-white p-1">Customer Service</span>
-          <span className="cursor-pointer hover:border hover:border-white p-1">Registry</span>
-          <span className="cursor-pointer hover:border hover:border-white p-1"
+          </button>
+          <button type="button" className="hover:border hover:border-white p-1">Today's Deals</button>
+          <button type="button" className="hover:border hover:border-white p-1">Customer Service</button>
+          <button type="button" className="hover:border hover:border-white p-1">Registry</button>
+          <button type="button" className="hover:border hover:border-white p-1"
             onClick={() => {
               handleDynamicPage('Gift Cards', navigate);
-            }}>Gift Cards</span>
-          <span className="cursor-pointer hover:border hover:border-white p-1">Sell</span>
+            }}>Gift Cards</button>
+          <button type="button" className="hover:border hover:border-white p-1">Sell</button>
         </nav>
       </header>
 
@@ -170,7 +178,7 @@ const RiverBuyClone: React.FC = () => {
           <div className="text-white text-center">
             <h1 className="text-4xl font-bold mb-2">Holiday Deals</h1>
             <p className="text-xl">Save up to 50% on select items</p>
-            <button className="mt-4 bg-orange-400 text-gray-900 px-6 py-2 rounded font-semibold hover:bg-orange-500">
+            <button type="button" className="mt-4 bg-orange-400 text-gray-900 px-6 py-2 rounded font-semibold hover:bg-orange-500">
               Shop Now
             </button>
           </div>
@@ -210,16 +218,16 @@ const RiverBuyClone: React.FC = () => {
                       {product.discount}% OFF
                     </span>
                   )}
-                  <button className="absolute top-2 right-2 p-1 bg-white rounded-full shadow hover:shadow-md">
-                    {/* <Heart className="w-4 h-4 text-gray-600" /> */}
+                  <button className="absolute top-2 right-2 p-1 bg-white rounded-full shadow hover:shadow-md" type="button" aria-label={`Save ${product.title}`}>
+                    <Heart className="w-4 h-4 text-gray-600" aria-hidden="true" />
                   </button>
                 </div>
-                <h3 className="text-sm font-medium mb-1 line-clamp-2 hover:text-orange-500 cursor-pointer">
+	                <h3 className="text-sm font-medium mb-1 line-clamp-2">
                   {product.title}
                 </h3>
-                <div className="flex items-center mb-1">
+                <div className="flex items-center mb-1" aria-label={`${product.rating} out of 5 stars, ${product.reviews.toLocaleString()} reviews`}>
                   <div className="flex mr-1">{renderStars(product.rating)}</div>
-                  <span className="text-xs text-gray-600">({product.reviews.toLocaleString()})</span>
+                  <span className="text-xs text-gray-600" aria-hidden="true">({product.reviews.toLocaleString()})</span>
                 </div>
                 {product.prime && (
                   <div className="text-xs font-bold text-blue-600 mb-1">prime</div>
@@ -237,8 +245,8 @@ const RiverBuyClone: React.FC = () => {
                     navigate('/done')
                   }}
                   className="w-full bg-yellow-400 text-gray-900 py-1 px-3 rounded text-sm font-medium hover:bg-yellow-500"
-
-
+                  type="button"
+                  aria-label={`Add ${product.title} to cart`}
                 >
                   Add to Cart
                 </button>
@@ -257,7 +265,7 @@ const RiverBuyClone: React.FC = () => {
                 <div>
                   <h3 className="font-medium text-sm mb-1">{product.title}</h3>
                   <div className="text-red-600 font-bold">${product.price}</div>
-                  <button className="text-blue-600 text-sm hover:text-orange-500 mt-1">See all deals</button>
+                  <button type="button" aria-label={`See all deals for ${product.title}`} className="text-blue-600 text-sm hover:text-orange-500 mt-1">See all deals</button>
                 </div>
               </div>
             ))}
@@ -267,44 +275,44 @@ const RiverBuyClone: React.FC = () => {
 
       {/* Footer */}
       <footer className="bg-gray-800 text-white mt-12">
-        <div className="bg-gray-700 py-3 text-center cursor-pointer hover:bg-gray-600">
-          <p className="text-sm">Back to top</p>
-        </div>
+	        <a href="#main-content" className="block bg-gray-700 py-3 text-center hover:bg-gray-600">
+	          <p className="text-sm">Back to top</p>
+	        </a>
         <div className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-2 md:grid-cols-4 gap-8">
           <div>
             <h3 className="font-bold mb-3">Get to Know Us</h3>
             <ul className="space-y-2 text-sm text-gray-300">
-              <li className="hover:text-white cursor-pointer">Careers</li>
-              <li className="hover:text-white cursor-pointer">Blog</li>
-              <li className="hover:text-white cursor-pointer">About RiverBuy</li>
-              <li className="hover:text-white cursor-pointer">Investor Relations</li>
+	              <li>Careers</li>
+	              <li>Blog</li>
+	              <li>About RiverBuy</li>
+	              <li>Investor Relations</li>
             </ul>
           </div>
           <div>
             <h3 className="font-bold mb-3">Make Money with Us</h3>
             <ul className="space-y-2 text-sm text-gray-300">
-              <li className="hover:text-white cursor-pointer">Sell on RiverBuy</li>
-              <li className="hover:text-white cursor-pointer">Sell under RiverBuy Accelerator</li>
-              <li className="hover:text-white cursor-pointer">RiverBuy Global Selling</li>
-              <li className="hover:text-white cursor-pointer">Become an Affiliate</li>
+	              <li>Sell on RiverBuy</li>
+	              <li>Sell under RiverBuy Accelerator</li>
+	              <li>RiverBuy Global Selling</li>
+	              <li>Become an Affiliate</li>
             </ul>
           </div>
           <div>
             <h3 className="font-bold mb-3">RiverBuy Payment Products</h3>
             <ul className="space-y-2 text-sm text-gray-300">
-              <li className="hover:text-white cursor-pointer">RiverBuy Business Card</li>
-              <li className="hover:text-white cursor-pointer">Shop with Points</li>
-              <li className="hover:text-white cursor-pointer">Reload Your Balance</li>
-              <li className="hover:text-white cursor-pointer">RiverBuy Currency Converter</li>
+	              <li>RiverBuy Business Card</li>
+	              <li>Shop with Points</li>
+	              <li>Reload Your Balance</li>
+	              <li>RiverBuy Currency Converter</li>
             </ul>
           </div>
           <div>
             <h3 className="font-bold mb-3">Let Us Help You</h3>
             <ul className="space-y-2 text-sm text-gray-300">
-              <li className="hover:text-white cursor-pointer">Your Account</li>
-              <li className="hover:text-white cursor-pointer">Your Orders</li>
-              <li className="hover:text-white cursor-pointer">Shipping Rates & Policies</li>
-              <li className="hover:text-white cursor-pointer">Help</li>
+	              <li>Your Account</li>
+	              <li>Your Orders</li>
+	              <li>Shipping Rates & Policies</li>
+	              <li>Help</li>
             </ul>
           </div>
         </div>

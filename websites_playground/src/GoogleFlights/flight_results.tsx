@@ -3,14 +3,11 @@ import { useState, useEffect } from "react";
 import { Flight } from './flightAsset';
 import { useLocation, useNavigate, useNavigation } from 'react-router-dom';
 import { useMemo } from "react";
-import { pickBestFileWithDeepseek, naiveMatch } from "../utils/pickbestfileDeepseek";
-
-import { DEEPSEEK_API_KEY } from '../utils/deepseek_key';
+import { pickBestLocalFile } from "../utils/pickbestfileDeepseek";
 import { parseFlights } from "./htmlSnippetFlight";
 
 import { FilterBar } from "./filterbar";
 import { applyFilters } from "./filter_helpers";
-
 
 export const FlightResults: React.FC = () => {
 
@@ -50,18 +47,8 @@ export const FlightResults: React.FC = () => {
 			"flight_NYCSIN_results.txt"
 		];
 
-		// Wrap async code in an immediately invoked async function
-		(async () => {
-			// RESULTS file — try LLM, fallback to naive
-			let bestResults = (await pickBestFileWithDeepseek(JSON.stringify(location.state), flight_files, DEEPSEEK_API_KEY).catch(() => ({ best: null }))).best;
-			if (!bestResults) bestResults = naiveMatch(JSON.stringify(location.state), flight_files);
-
-			setRawHtml(bestResults || '')
-
-
-		})();
-
-
+		const bestResults = pickBestLocalFile(JSON.stringify(location.state || {}), flight_files);
+		setRawHtml(bestResults || '');
 
 	}, [location.state]);
 
@@ -70,8 +57,9 @@ export const FlightResults: React.FC = () => {
 		if (!rawhtml) return;
 
 		let cancelled = false;
+		const sourceUrl = new URL(`/scraped_data/${rawhtml}`, window.location.origin).toString();
 
-		fetch(`/scraped_data/${rawhtml}`)
+		fetch(sourceUrl)
 			.then(r => {
 				if (!r.ok) throw new Error(`Fetch failed: ${r.status} ${r.statusText}`);
 				return r.text();
@@ -99,7 +87,7 @@ export const FlightResults: React.FC = () => {
 			>
 				&larr; New search
 			</button>
-			<h2 className="text-xl font-semibold mb-4">Flight Results</h2>
+			<h1 className="text-xl font-semibold mb-4">Flight Results</h1>
 
 			<FilterBar
 				value={filters}
@@ -110,13 +98,25 @@ export const FlightResults: React.FC = () => {
 			// }}
 			/>
 
+			{/* Announce result-count changes (e.g. after adjusting a filter). */}
+			<p className="sr-only" role="status" aria-live="polite">
+				{searchResults.length > 0
+					? `${filteredResults.length} flight${filteredResults.length === 1 ? '' : 's'} found`
+					: ''}
+			</p>
+
 			{filteredResults.length === 0 ? (
-				<p></p>
+				<p className="text-gray-600">
+					{searchResults.length > 0 ? 'No flights match your filters.' : ''}
+				</p>
 			) : (
 				<ul className="space-y-4"
 				>
 					{filteredResults.map(flight => (
-						<li key={flight.id} className="bg-white rounded-lg shadow p-4 flex flex-col md:flex-row md:items-center md:justify-between"
+						// Row stays mouse-clickable for convenience, but the explicit
+						// "View details" button below is the accessible CTA (avoids
+						// nesting interactive elements).
+						<li key={flight.id} className="bg-white rounded-lg shadow p-4 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer"
 							onClick={() => navigate('/flight_details', { state: { flight_data: flight } })}
 						>
 							<div className="flex items-center space-x-4 mb-2 md:mb-0">
@@ -141,6 +141,22 @@ export const FlightResults: React.FC = () => {
 							<div className="mt-2 md:mt-0 text-right text-xl font-semibold text-blue-600">
 								${flight.price}
 							</div>
+
+							{/* Explicit CTA: a real <button> is an unambiguous, reliably
+							    clickable, keyboard-accessible target for opening details
+							    (a coordinate click on the <li> alone could miss). */}
+							<button
+								type="button"
+								aria-label={`Open details for ${flight.airline} flight ${flight.departure} to ${flight.arrival} at $${flight.price}`}
+								data-testid={`flight-details-${String(flight.airline).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${flight.price}`}
+								className="mt-2 md:mt-0 md:ml-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+								onClick={(e) => {
+									e.stopPropagation();
+									navigate('/flight_details', { state: { flight_data: flight } });
+								}}
+							>
+								View details
+							</button>
 
 						</li>
 					))}

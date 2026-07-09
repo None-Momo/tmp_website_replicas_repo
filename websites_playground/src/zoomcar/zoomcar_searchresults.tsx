@@ -99,28 +99,30 @@ const ZoomCarSearchResults = () => {
 			<header className="bg-white text-white py-4 px-6">
 				<div className="container mx-auto flex justify-between items-center">
 					<div className="flex items-center space-x-2 ">
-						<Car className="h-8 w-8 text-red-600" />
-						<span className="font-bold text-2xl text-gray-900">ZoomCar</span>
-					</div>
-					<nav>
-						<ul className="flex space-x-6">
-							<li className="hover:underline cursor-pointer">Locations</li>
-							<li className="hover:underline cursor-pointer">Deals</li>
-							<li className="hover:underline cursor-pointer">My Account</li>
-						</ul>
-					</nav>
+							<Car className="h-8 w-8 text-red-600" aria-hidden="true" />
+							<span className="font-bold text-2xl text-gray-900">ZoomCar</span>
+						</div>
+						<nav aria-label="ZoomCar sections">
+							<ul className="flex space-x-6">
+								<li><a href="#zoomcar-results" className="hover:underline">Locations</a></li>
+								<li><a href="#zoomcar-results" className="hover:underline">Deals</a></li>
+								<li><a href="#zoomcar-results" className="hover:underline">My Account</a></li>
+							</ul>
+						</nav>
 				</div>
 			</header>
 
 			{/* Search Modification Section */}
 			<div className="bg-white shadow-md py-6 px-4">
 				<div className="container mx-auto">
+					<h1 className="sr-only">ZoomCar search results</h1>
 					<h2 className="text-xl font-bold text-gray-800 mb-4">Modify Search</h2>
 					<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">Pick-up Location</label>
-							<input
-								type="text"
+								<label htmlFor="zoomcar-results-pickup" className="block text-sm font-medium text-gray-700 mb-1">Pick-up Location</label>
+								<input
+									id="zoomcar-results-pickup"
+									type="text"
 								className="w-full p-2 border border-gray-300 rounded"
 								// defaultValue="Los Angeles Airport (LAX)"
 								value={pickupLocation}
@@ -128,8 +130,9 @@ const ZoomCarSearchResults = () => {
 							/>
 						</div>
 						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">Pick-up Date</label>
-							<input
+								<label htmlFor="zoomcar-results-pickup-date" className="block text-sm font-medium text-gray-700 mb-1">Pick-up Date</label>
+								<input
+									id="zoomcar-results-pickup-date"
 								type="date"
 								className="w-full p-2 border border-gray-300 rounded"
 								value={pickupDate.toISOString().split('T')[0]}
@@ -138,8 +141,9 @@ const ZoomCarSearchResults = () => {
 							/>
 						</div>
 						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">Return Date</label>
-							<input
+								<label htmlFor="zoomcar-results-return-date" className="block text-sm font-medium text-gray-700 mb-1">Return Date</label>
+								<input
+									id="zoomcar-results-return-date"
 								type="date"
 								className="w-full p-2 border border-gray-300 rounded"
 								value={returnDate.toISOString().split('T')[0]}
@@ -147,7 +151,7 @@ const ZoomCarSearchResults = () => {
 							/>
 						</div>
 						<div className="flex items-end">
-							<button className="w-full bg-red-600 text-white hover:bg-red-700 text-white py-2 px-4 rounded">
+								<button type="button" className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded">
 								Update Search
 							</button>
 						</div>
@@ -155,15 +159,15 @@ const ZoomCarSearchResults = () => {
 				</div>
 			</div>
 
-			<div className="container mx-auto py-8 px-4">
+				<main id="zoomcar-results" className="container mx-auto py-8 px-4">
 				<div className="flex flex-col lg:flex-row gap-6">
 					{/* Filters Sidebar */}
 					<div className="w-full lg:w-1/4 bg-white p-6 rounded-lg shadow-md h-fit">
 						<h3 className="text-lg font-bold text-gray-800 mb-4">Filter Results</h3>
 
 						<div className="mb-6">
-							<h4 className="font-semibold text-gray-700 mb-2">Car Type</h4>
-							<div className="space-y-2">
+							<h4 className="font-semibold text-gray-700 mb-2" id="car-type-heading">Car Type</h4>
+							<div className="space-y-2" role="radiogroup" aria-labelledby="car-type-heading">
 								{carTypes.map(type => (
 									<div key={type} className="flex items-center">
 										<input
@@ -181,8 +185,8 @@ const ZoomCarSearchResults = () => {
 						</div>
 
 						<div className="mb-6">
-							<h4 className="font-semibold text-gray-700 mb-2">Transmission</h4>
-							<div className="space-y-2">
+							<h4 className="font-semibold text-gray-700 mb-2" id="transmission-heading">Transmission</h4>
+							<div className="space-y-2" role="radiogroup" aria-labelledby="transmission-heading">
 								<div className="flex items-center">
 									<input
 										type="radio"
@@ -235,6 +239,7 @@ const ZoomCarSearchResults = () => {
 						</div> */}
 
 						<button
+							type="button"
 							onClick={() => {
 								setCarType('All');
 								setTransmission('All');
@@ -345,38 +350,37 @@ const ZoomCarSearchResults = () => {
 								orientation='grid' />
 
 
+							</div>
 						</div>
 					</div>
-				</div>
-			</div>
-
-			{/* Footer */}
+					</main>
+				{/* Footer */}
 			<footer className="bg-gray-800 text-white py-8 px-4 mt-12">
 				<div className="container mx-auto">
 					<div className="grid grid-cols-1 md:grid-cols-4 gap-8">
 						<div>
 							<h4 className="text-lg font-bold mb-4">ZoomCar</h4>
 							<ul className="space-y-2 text-gray-300">
-								<li className="hover:text-white cursor-pointer">About Us</li>
-								<li className="hover:text-white cursor-pointer">Locations</li>
-								<li className="hover:text-white cursor-pointer">Careers</li>
-								<li className="hover:text-white cursor-pointer">Contact</li>
+									<li>About Us</li>
+									<li>Locations</li>
+									<li>Careers</li>
+									<li>Contact</li>
 							</ul>
 						</div>
 						<div>
 							<h4 className="text-lg font-bold mb-4">Policies</h4>
 							<ul className="space-y-2 text-gray-300">
-								<li className="hover:text-white cursor-pointer">Privacy Policy</li>
-								<li className="hover:text-white cursor-pointer">Terms of Use</li>
-								<li className="hover:text-white cursor-pointer">Cancellation Policy</li>
+									<li>Privacy Policy</li>
+									<li>Terms of Use</li>
+									<li>Cancellation Policy</li>
 							</ul>
 						</div>
 						<div>
 							<h4 className="text-lg font-bold mb-4">Support</h4>
 							<ul className="space-y-2 text-gray-300">
-								<li className="hover:text-white cursor-pointer">FAQ</li>
-								<li className="hover:text-white cursor-pointer">Help Center</li>
-								<li className="hover:text-white cursor-pointer">Roadside Assistance</li>
+									<li>FAQ</li>
+									<li>Help Center</li>
+									<li>Roadside Assistance</li>
 							</ul>
 						</div>
 						<div>

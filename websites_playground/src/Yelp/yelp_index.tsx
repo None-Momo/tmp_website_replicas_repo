@@ -88,18 +88,18 @@ export default function YelpClone() {
                 <div className="bg-red-600 text-white font-black text-2xl px-3 py-1 rounded">grumble</div>
               </div>
             </div>
-            <nav className="hidden md:flex items-center space-x-8">
-              <button className="text-gray-700 hover:text-gray-900 font-medium">grumble for Business</button>
-              <button className="text-gray-700 hover:text-gray-900 font-medium">Write a Review</button>
-              <button className="text-gray-700 hover:text-gray-900 font-medium px-4 py-2 border border-gray-300 rounded hover:bg-gray-50">Log In</button>
-              <button className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 font-medium">Sign Up</button>
-            </nav>
+	            <nav className="hidden md:flex items-center space-x-8" aria-label="Grumble account and business links">
+	              <button type="button" className="text-gray-700 hover:text-gray-900 font-medium">grumble for Business</button>
+	              <button type="button" className="text-gray-700 hover:text-gray-900 font-medium">Write a Review</button>
+	              <button type="button" className="text-gray-700 hover:text-gray-900 font-medium px-4 py-2 border border-gray-300 rounded hover:bg-gray-50">Log In</button>
+	              <button type="button" className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 font-medium">Sign Up</button>
+	            </nav>
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-br from-red-600 to-red-800 text-white">
+	      <main className="relative bg-gradient-to-br from-red-600 to-red-800 text-white">
         <div className="absolute inset-0 bg-black opacity-20"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
@@ -109,9 +109,10 @@ export default function YelpClone() {
             <div className="max-w-4xl mx-auto">
               <div className="bg-white rounded-lg shadow-xl p-2 flex flex-col sm:flex-row gap-2">
                 <div className="flex-1 flex items-center border-r border-gray-200 px-4">
-                  <Search className="text-gray-400 w-5 h-5 mr-3" />
-                  <input
-                    type="text"
+	                  <Search className="text-gray-400 w-5 h-5 mr-3" aria-hidden="true" />
+	                  <input
+	                    aria-label="Search Grumble"
+	                    type="text"
                     placeholder="tacos, cheap dinner, Max's"
                     className="w-full py-3 text-gray-900 placeholder-gray-500 focus:outline-none"
                     value={searchTerm}
@@ -143,7 +144,7 @@ export default function YelpClone() {
                     onChange={(e) => setLocation(e.target.value)}
                   />
                 </div> */}
-                <button className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded font-medium transition-colors"
+	                <button type="button" className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded font-medium transition-colors"
                   onClick={() => {
                     //check if search term or location is empty
                     if (!searchTerm) {
@@ -158,13 +159,13 @@ export default function YelpClone() {
                   }}>
                   Search
 
-                </button>
-              </div>
-            </div>
+	                </button>
+	              </div>
+	            </div>
 
-          </div>
-        </div>
-      </div>
+	          </div>
+	        </div>
+	      </main>
 
 
     </div>

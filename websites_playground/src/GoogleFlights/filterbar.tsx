@@ -24,7 +24,7 @@ export function FilterBar({
 }) {
 	return (
 		<div className="sticky top-0 z-10 bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-			<div className="flex flex-wrap items-center gap-2 border-b border-gray-200 py-3">
+			<div className="flex flex-wrap items-center gap-2 border-b border-gray-200 py-3" role="group" aria-label="Filter flights">
 
 				<Dropdown label="Stops">
 					<Checkbox
@@ -139,10 +139,19 @@ function Dropdown({
 	}, []);
 
 	return (
-		<div className="relative" ref={ref}>
+		<div
+			className="relative"
+			ref={ref}
+			// Let keyboard users dismiss the open panel (click-outside is mouse-only).
+			onKeyDown={(e) => {
+				if (e.key === "Escape") setOpen(false);
+			}}
+		>
 			<button
 				type="button"
 				aria-expanded={open}
+				aria-haspopup="true"
+				aria-label={`${label} filter`}
 				onClick={() => setOpen((o) => !o)}
 				className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
 			>
@@ -161,7 +170,9 @@ function Dropdown({
 					{children}
 					<div className="mt-3 flex justify-end">
 						<button
+							type="button"
 							className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+							aria-label={`Close ${label} filter`}
 							onClick={() => setOpen(false)}
 						>
 							Done
@@ -219,6 +230,7 @@ function SliderRow({
 				max={max}
 				step={step}
 				value={value}
+				aria-label={label}
 				onChange={(e) => onChange(Number(e.target.value))}
 				className="w-full accent-blue-600"
 			/>
@@ -249,6 +261,7 @@ function TagInput({
 					>
 						{v}
 						<button
+							type="button"
 							className="text-gray-500 hover:text-gray-700"
 							onClick={() => onChange(values.filter((x) => x !== v))}
 							aria-label={`Remove ${v}`}
@@ -261,6 +274,7 @@ function TagInput({
 			<div className="flex items-center gap-2">
 				<input
 					value={text}
+					aria-label={placeholder || "Add a value"}
 					onChange={(e) => setText(e.target.value)}
 					onKeyDown={(e) => {
 						if (e.key === "Enter" && text.trim()) {
@@ -272,6 +286,8 @@ function TagInput({
 					className="w-full rounded-md border border-gray-300 px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
 				/>
 				<button
+					type="button"
+					aria-label={placeholder ? `Add: ${placeholder}` : "Add value"}
 					className="rounded-md border border-gray-300 px-2.5 py-1.5 text-sm hover:bg-gray-50"
 					onClick={() => {
 						if (text.trim()) {

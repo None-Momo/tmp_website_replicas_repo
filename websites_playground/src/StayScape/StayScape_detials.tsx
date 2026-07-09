@@ -6,7 +6,9 @@ export const StayScapeDetails: React.FC = () => {
 	const location = useLocation();
 	const product = location?.state?.product;
 
-	return (<div onClick={() => navigate("/done")}>
+	// Removed whole-page onClick -> /done (a click-trap that abandoned the
+	// details page on any click); the explicit reserve button still navigates.
+	return (<div>
 		{product ? (
 			<div className="min-h-screen bg-gray-50">
 				{/* Header */}
@@ -17,19 +19,19 @@ export const StayScapeDetails: React.FC = () => {
 								<h1 className="text-2xl font-bold text-pink-500">StayScape</h1>
 							</div>
 							<div className="flex items-center space-x-6">
-								<button className="text-sm font-medium text-gray-700 hover:text-gray-900">
+								<button type="button" className="text-sm font-medium text-gray-700 hover:text-gray-900">
 									Become a host
 								</button>
-								<button className="bg-pink-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-pink-600">
+								<button type="button" className="bg-pink-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-pink-600">
 									Try hosting
 								</button>
-								<button className="p-2 rounded-full bg-gray-100 hover:bg-gray-200">
-									<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<button type="button" className="p-2 rounded-full bg-gray-100 hover:bg-gray-200" aria-label="Open menu">
+									<svg aria-hidden="true" className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
 									</svg>
 								</button>
-								<button className="p-2 rounded-full bg-gray-100 hover:bg-gray-200">
-									<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<button type="button" className="p-2 rounded-full bg-gray-100 hover:bg-gray-200" aria-label="Open account menu">
+									<svg aria-hidden="true" className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
 									</svg>
 								</button>
@@ -42,7 +44,7 @@ export const StayScapeDetails: React.FC = () => {
 
 				<div dangerouslySetInnerHTML={{ __html: product }} />
 
-				<button className="fixed bottom-8 right-8 bg-pink-500 text-white px-6 py-3 rounded-full shadow-lg hover:bg-pink-600" onClick={() => navigate("/done")}>
+				<button type="button" aria-label="Finish and go to confirmation page" className="fixed bottom-8 right-8 bg-pink-500 text-white px-6 py-3 rounded-full shadow-lg hover:bg-pink-600" onClick={() => navigate("/done")}>
 					Done
 				</button>
 

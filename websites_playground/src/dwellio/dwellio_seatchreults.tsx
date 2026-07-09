@@ -2,8 +2,6 @@ import { Home } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HtmlSnippets from '../amazon/htlmSnippersAmazon';
-import { naiveMatch, pickBestFileWithDeepseek } from '../utils/pickbestfileDeepseek';
-import { DEEPSEEK_API_KEY } from '../utils/deepseek_key';
 
 type Property = {
 	id: number;
@@ -22,6 +20,7 @@ const DwellioSearch: React.FC = () => {
 	const [typeFilter, setTypeFilter] = useState<string>('all');
 
 	const [resultsLoaded, setResultsLoaded] = useState<boolean>(false);
+	const [noCityData, setNoCityData] = useState<boolean>(false);
 	const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
 	const [raw, setRaw] = useState<string>("")
@@ -102,23 +101,24 @@ const DwellioSearch: React.FC = () => {
 			const debounce = setTimeout(async () => {
 				const newSearchQuery = searchQuery.trim();
 
-				const fileNames = [
-					"SF_zillow_articles.txt",
-					"NY_zillow_articles.txt",
-					// "amazon_shoe_results_inlined.txt"
-				];
-
-				const sidenavbarFileNames = [
-
-				];
-				const bestFile = (await pickBestFileWithDeepseek(newSearchQuery, fileNames, DEEPSEEK_API_KEY).catch(e => { console.error(e); return null; }))?.best;
-				// console.log('Best file for query:', newSearchQuery, 'is', bestFile);
-				if (!bestFile) naiveMatch(newSearchQuery, fileNames);
+				// Strict city -> dataset mapping. The shared pickBestLocalFile
+				// helper falls back to the first candidate file when nothing
+				// matches, which served San Francisco listings for a Chicago
+				// search; an unmatched city must show the empty state instead.
+				const q = newSearchQuery.toLowerCase();
+				const bestFile = /chicago|illinois/.test(q)
+					? "Chicago_zillow_articles.txt"
+					: /san francisco|\bsf\b|bay area/.test(q)
+						? "SF_zillow_articles.txt"
+						: null;
 
 				if (!cancelled) {
+					// No dataset for this city: show the empty state instead of
+					// silently serving another city's listings.
 					const src = bestFile ? `/scraped_data/${bestFile}` : "";
-					// If your state for the path is named differently, replace setSource with it:
 					setRaw(src);
+					setNoCityData(!bestFile);
+					if (!bestFile) setResultsLoaded(true);
 				}
 
 
@@ -132,19 +132,21 @@ const DwellioSearch: React.FC = () => {
 
 			<header className="bg-white shadow-md p-4 mb-6 rounded-lg">
 				<div className="flex items-center space-x-2">
-					<Home className="text-blue-600 w-8 h-8" />
+						<Home className="text-blue-600 w-8 h-8" aria-hidden="true" />
 					<h1 className="text-2xl font-bold text-blue-600">Dwellio</h1>
 				</div>
 				<div className="flex flex-col md:flex-row gap-4">
-					<input
-						type="text"
-						placeholder="Search by address..."
+						<input
+							type="text"
+							aria-label="Search by address"
+							placeholder="Search by address..."
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 						className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 					/>
-					<select
-						value={typeFilter}
+						<select
+							aria-label="Property type"
+							value={typeFilter}
 						onChange={(e) => setTypeFilter(e.target.value)}
 						className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 					>
@@ -159,10 +161,19 @@ const DwellioSearch: React.FC = () => {
 
 			<main>
 				{!resultsLoaded && searchQuery.trim() !== "" && (
-					<p className="text-gray-500 mb-4">Loading results...</p>
+					<p className="text-gray-500 mb-4" role="status">Loading results...</p>
 				)}
 
-				{resultsLoaded && <HtmlSnippets
+				{noCityData && searchQuery.trim() !== "" && (
+					<p className="text-gray-600 mb-4" role="status">
+						No listings found for "{searchQuery.trim()}". Try Chicago or San Francisco.
+					</p>
+				)}
+
+				{/* Must render unconditionally (like the other sites): HtmlSnippets
+				    is what flips resultsLoaded, so gating it on resultsLoaded left
+				    the page stuck on "Loading results..." forever. */}
+				{!noCityData && <HtmlSnippets
 					source={raw} navigateToDetails={(product) => {
 						// navigate("/done")
 						navigate("/dwellio_details", { state: { product } })

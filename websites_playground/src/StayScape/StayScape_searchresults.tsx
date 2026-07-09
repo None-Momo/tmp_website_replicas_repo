@@ -11,8 +11,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
 import { set } from "date-fns";
-import { naiveMatch, pickBestFileWithDeepseek } from "../utils/pickbestfileDeepseek";
-import { DEEPSEEK_API_KEY } from "../utils/deepseek_key";
+import { pickBestLocalFile } from "../utils/pickbestfileDeepseek";
 import HtmlSnippets from "../amazon/htlmSnippersAmazon";
 
 
@@ -54,12 +53,7 @@ export default function StayScapeSearchResults() {
 					// "amazon_shoe_results_inlined.txt"
 				];
 
-				const sidenavbarFileNames = [
-
-				];
-				const bestFile = (await pickBestFileWithDeepseek(newSearchQuery, fileNames, DEEPSEEK_API_KEY).catch(e => { console.error(e); return null; }))?.best;
-				// console.log('Best file for query:', newSearchQuery, 'is', bestFile);
-				if (!bestFile) naiveMatch(newSearchQuery, fileNames);
+				const bestFile = pickBestLocalFile(newSearchQuery, fileNames);
 
 				if (!cancelled) {
 					const src = bestFile ? `/scraped_data/${bestFile}` : "";
@@ -151,19 +145,19 @@ export default function StayScapeSearchResults() {
 							<h1 className="text-2xl font-bold text-pink-500">StayScape</h1>
 						</div>
 						<div className="flex items-center space-x-6">
-							<button className="text-sm font-medium text-gray-700 hover:text-gray-900">
-								Become a host
-							</button>
-							<button className="bg-pink-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-pink-600">
-								Try hosting
-							</button>
-							<button className="p-2 rounded-full bg-gray-100 hover:bg-gray-200">
-								<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-								</svg>
-							</button>
-							<button className="p-2 rounded-full bg-gray-100 hover:bg-gray-200">
-								<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<button type="button" className="text-sm font-medium text-gray-700 hover:text-gray-900">
+									Become a host
+								</button>
+								<button type="button" className="bg-pink-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-pink-600">
+									Try hosting
+								</button>
+								<button type="button" className="p-2 rounded-full bg-gray-100 hover:bg-gray-200" aria-label="Open menu">
+									<svg aria-hidden="true" className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+									</svg>
+								</button>
+								<button type="button" className="p-2 rounded-full bg-gray-100 hover:bg-gray-200" aria-label="Open account menu">
+									<svg aria-hidden="true" className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
 								</svg>
 							</button>
@@ -176,17 +170,18 @@ export default function StayScapeSearchResults() {
 			<div className="bg-white border-b border-gray-200">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 					<div className="flex items-center space-x-2 mb-4">
-						<button className="text-sm text-gray-600 hover:text-gray-900">Stays</button>
-						<button className="text-sm text-gray-400 hover:text-gray-900">Experiences</button>
+							<button type="button" className="text-sm text-gray-600 hover:text-gray-900">Stays</button>
+							<button type="button" className="text-sm text-gray-500 hover:text-gray-900">Experiences</button>
 					</div>
 
 					<div className="relative">
 						<div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
-							<Search className="h-5 w-5 text-gray-400" />
-						</div>
-						<input
-							type="text"
-							placeholder="San Diego"
+								<Search className="h-5 w-5 text-gray-400" aria-hidden="true" />
+							</div>
+							<input
+								type="text"
+								aria-label="Search StayScape location"
+								placeholder="San Diego"
 							className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
@@ -195,14 +190,17 @@ export default function StayScapeSearchResults() {
 				</div>
 			</div>
 
-			<HtmlSnippets source={raw} navigateToDetails={(product) => {
+				<main>
+				<h2 className="sr-only">Search results{searchQuery ? ` for ${searchQuery}` : ''}</h2>
+				<HtmlSnippets source={raw} navigateToDetails={(product) => {
 				// navigate("/done") 
 				navigate('/stayscape_details', { state: { product } });
 
 			}}
 				query={searchQuery} setResultsLoaded={setResultsLoaded}
 				customCSSProp={customCSS} selectedFilters={selectedFilters}
-				orientation="grid" />
+					orientation="grid" />
+				</main>
 
 
 
@@ -215,32 +213,32 @@ export default function StayScapeSearchResults() {
 							<h3 className="text-sm font-semibold text-gray-900 mb-4">Support</h3>
 							<ul className="space-y-3">
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Help Center
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										AirCover
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Anti-discrimination
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Disability support
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Cancellation options
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Report neighborhood concern
 									</a>
 								</li>
@@ -250,37 +248,37 @@ export default function StayScapeSearchResults() {
 							<h3 className="text-sm font-semibold text-gray-900 mb-4">Hosting</h3>
 							<ul className="space-y-3">
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Try hosting
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										AirCover for Hosts
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Hosting resources
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Community forum
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Hosting responsibly
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Join a free Hosting class
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Find a co-host
 									</a>
 								</li>
@@ -290,37 +288,37 @@ export default function StayScapeSearchResults() {
 							<h3 className="text-sm font-semibold text-gray-900 mb-4">StayScape</h3>
 							<ul className="space-y-3">
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										2025 Summer Release
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Newsroom
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										New features
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Careers
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Investors
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Gift cards
 									</a>
 								</li>
 								<li>
-									<a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+									<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">
 										Emergency stays
 									</a>
 								</li>
@@ -332,21 +330,21 @@ export default function StayScapeSearchResults() {
 						<div className="flex items-center space-x-4 mb-4 md:mb-0">
 							<p className="text-sm text-gray-600">© 2025 StayScape, Inc.</p>
 							<div className="flex items-center space-x-4">
-								<button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-900">
-									<svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+								<button type="button" className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-900" aria-label="Change language: English (US)">
+									<svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
 										<path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 5.73 6.974 6 7.5 6A1.5 1.5 0 019 7.5V8a2 2 0 004 0 2 2 0 011.523-1.943A5.977 5.977 0 0116 10c0 .34-.028.675-.083 1H15a2 2 0 00-2 2v2.197A5.973 5.973 0 0110 16v-2a2 2 0 00-2-2 2 2 0 01-2-2 2 2 0 00-1.668-1.973z" clipRule="evenodd" />
 									</svg>
 									<span>English (US)</span>
-									<ChevronDown className="h-4 w-4" />
+									<ChevronDown className="h-4 w-4" aria-hidden="true" />
 								</button>
-								<button className="text-sm text-gray-600 hover:text-gray-900">$ USD</button>
+								<button type="button" className="text-sm text-gray-600 hover:text-gray-900" aria-label="Change currency: US dollars">$ USD</button>
 							</div>
 						</div>
 						<div className="flex items-center space-x-6">
-							<a href="#" className="text-sm text-gray-600 hover:text-gray-900">Facebook</a>
-							<a href="#" className="text-sm text-gray-600 hover:text-gray-900">X</a>
-							<a href="#" className="text-sm text-gray-600 hover:text-gray-900">Instagram</a>
-							<a href="#" className="text-sm text-gray-600 hover:text-gray-900">TikTok</a>
+							<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">Facebook</a>
+							<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">X</a>
+							<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">Instagram</a>
+							<a href="#main-content" className="text-sm text-gray-600 hover:text-gray-900">TikTok</a>
 						</div>
 					</div>
 				</div>
