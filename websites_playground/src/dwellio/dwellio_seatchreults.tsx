@@ -1,7 +1,7 @@
 import { Home } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import HtmlSnippets from '../amazon/htlmSnippersAmazon';
+import HtmlSnippets, { extractSnippetTitle, slugifyTitle } from '../amazon/htlmSnippersAmazon';
 
 type Property = {
 	id: number;
@@ -14,22 +14,13 @@ type Property = {
 	type: string;
 };
 
+// The only two cities with a dataset (see the strict city -> file mapping
+// below); searched in full when a listing must be recovered from the URL
+// alone (no location.state). Hoisted + exported, along with customCSS, so
+// dwellio_details.tsx can reuse them exactly.
+export const CANDIDATE_FILES = ["Chicago_zillow_articles.txt", "SF_zillow_articles.txt"];
 
-const DwellioSearch: React.FC = () => {
-	const [searchQuery, setSearchQuery] = useState<string>('');
-	const [typeFilter, setTypeFilter] = useState<string>('all');
-
-	const [resultsLoaded, setResultsLoaded] = useState<boolean>(false);
-	const [noCityData, setNoCityData] = useState<boolean>(false);
-	const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-
-	const [raw, setRaw] = useState<string>("")
-	// const [filteredProperties, setFilteredProperties] = useState<Property[]>(mockProperties);
-
-	const location = useLocation();
-	const navigate = useNavigate();
-
-	const customCSS = `
+export const customCSS = `
 	[data-test="property-card"]{
 		border: 1px solid #e5e7eb;
 		border-radius: 0.5rem;
@@ -78,6 +69,20 @@ const DwellioSearch: React.FC = () => {
 	  img{
 	  width: 80%;}
 		`;
+
+const DwellioSearch: React.FC = () => {
+	const [searchQuery, setSearchQuery] = useState<string>('');
+	const [typeFilter, setTypeFilter] = useState<string>('all');
+
+	const [resultsLoaded, setResultsLoaded] = useState<boolean>(false);
+	const [noCityData, setNoCityData] = useState<boolean>(false);
+	const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+
+	const [raw, setRaw] = useState<string>("")
+	// const [filteredProperties, setFilteredProperties] = useState<Property[]>(mockProperties);
+
+	const location = useLocation();
+	const navigate = useNavigate();
 
 	useEffect(() => {
 		const params = new URLSearchParams(location.search);
@@ -160,6 +165,7 @@ const DwellioSearch: React.FC = () => {
 
 
 			<main>
+				<h2 className="sr-only">Search results{searchQuery ? ` for ${searchQuery}` : ''}</h2>
 				{!resultsLoaded && searchQuery.trim() !== "" && (
 					<p className="text-gray-500 mb-4" role="status">Loading results...</p>
 				)}
@@ -176,7 +182,11 @@ const DwellioSearch: React.FC = () => {
 				{!noCityData && <HtmlSnippets
 					source={raw} navigateToDetails={(product) => {
 						// navigate("/done")
-						navigate("/dwellio_details", { state: { product } })
+						// Also encode the listing in the URL so the detail page
+						// can recover it without location.state (direct link,
+						// refresh, or a crawler like Lighthouse).
+						const slug = slugifyTitle(extractSnippetTitle(product));
+						navigate(slug ? `/dwellio_details/${slug}` : "/dwellio_details", { state: { product } })
 					}}
 					query={searchQuery} setResultsLoaded={setResultsLoaded}
 					orientation='grid' selectedFilters={selectedFilters}

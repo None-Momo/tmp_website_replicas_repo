@@ -12,9 +12,82 @@ import {
 import { useLocation, useNavigate } from "react-router";
 import { set } from "date-fns";
 import { pickBestLocalFile } from "../utils/pickbestfileDeepseek";
-import HtmlSnippets from "../amazon/htlmSnippersAmazon";
+import HtmlSnippets, { extractSnippetTitle, slugifyTitle } from "../amazon/htlmSnippersAmazon";
 
 
+
+// Hoisted out of the component (a static string, no props/state used) so
+// StayScape_detials.tsx can reuse the exact same styling when re-rendering a
+// listing from a URL slug instead of from navigation state.
+export const customCSS = `
+		/* Hover “lift” */
+		.cy5jw6o:hover,
+		.cy5jw6o:focus-within {
+		transform: translateY(-2px);
+		box-shadow: 0 12px 24px rgba(0,0,0,.12);
+		}
+
+		/* Common inner media */
+		.cy5jw6o img,
+		.cy5jw6o picture img {
+		width: 100%;
+		height: 220px;     /* medium image height */
+		object-fit: cover;
+		display: block;
+		border-radius: 10px;
+		}
+
+		/* Optional: tidy text blocks if present */
+		.cy5jw6o [data-testid="listing-card-title"] {
+		margin-top: 12px;
+		font-size: 1rem;   /* 16px */
+		font-weight: 600;
+		color: #111827;
+		}
+		.cy5jw6o [data-testid="listing-card-subtitle"] {
+		margin-top: 4px;
+		font-size: 0.875rem; /* 14px */
+		color: #6b7280;
+		}
+		div.t1p13dzz.atm_fg_1y6m0gg.dir.dir-ltr > div{
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		background-color: #000;
+		color: #fff;
+		font-size: 0.95rem;
+		font-weight: 500;
+		padding: 2px 6px;
+		border-radius: 0.375rem;
+		line-height: 1.2;
+		white-space: nowrap;
+		}
+		.i7ownue.dir.dir-ltr {
+		display: none
+		}
+
+		[data-testid="listing-card-title"] {
+		font-weight: 700 !important;
+		font-size: 20px !important;
+		line-height: 1.2 !important;
+		color:rgb(0, 0, 0) !important;
+		}
+		._w3xh25{
+		display: inline-flex !important;
+		align-items: center !important;
+
+		}
+		span.coc2t1u{
+		display:none !important;}
+		.b1tv82fw.atm_h_esu3gu{
+		display:none !important;}
+
+
+	`;
+
+// Both files the search page can serve; searched in full when a listing
+// must be recovered from the URL alone (no location.state).
+export const CANDIDATE_FILES = ["honolulu_airbnb_cards.txt", "NY_airbnb_cards.txt"];
 
 export default function StayScapeSearchResults() {
 	const [searchQuery, setSearchQuery] = useState("");
@@ -68,73 +141,6 @@ export default function StayScapeSearchResults() {
 	}, [searchQuery]);
 
 
-	const customCSS = `
-		/* Hover “lift” */
-		.cy5jw6o:hover,
-		.cy5jw6o:focus-within {
-		transform: translateY(-2px);
-		box-shadow: 0 12px 24px rgba(0,0,0,.12);
-		}
-
-		/* Common inner media */
-		.cy5jw6o img, 
-		.cy5jw6o picture img {
-		width: 100%;
-		height: 220px;     /* medium image height */
-		object-fit: cover;
-		display: block;
-		border-radius: 10px;
-		}
-
-		/* Optional: tidy text blocks if present */
-		.cy5jw6o [data-testid="listing-card-title"] {
-		margin-top: 12px;
-		font-size: 1rem;   /* 16px */
-		font-weight: 600;
-		color: #111827;
-		}
-		.cy5jw6o [data-testid="listing-card-subtitle"] {
-		margin-top: 4px;
-		font-size: 0.875rem; /* 14px */
-		color: #6b7280;
-		}
-		div.t1p13dzz.atm_fg_1y6m0gg.dir.dir-ltr > div{
-		display: inline-flex;    
-		align-items: center;      
-		gap: 0.25rem;             
-		background-color: #000;   
-		color: #fff;              
-		font-size: 0.95rem;       
-		font-weight: 500;
-		padding: 2px 6px;
-		border-radius: 0.375rem; 
-		line-height: 1.2;
-		white-space: nowrap;
-		}
-		.i7ownue.dir.dir-ltr {
-		display: none
-		}
-
-		[data-testid="listing-card-title"] {
-		font-weight: 700 !important;
-		font-size: 20px !important;
-		line-height: 1.2 !important;
-		color:rgb(0, 0, 0) !important;
-		}
-		._w3xh25{
-		display: inline-flex !important;
-		align-items: center !important;
-
-		}
-		span.coc2t1u{
-		display:none !important;}
-		.b1tv82fw.atm_h_esu3gu{
-		display:none !important;}
-
-
-	`;
-
-
 	return (
 		<div className="min-h-screen bg-gray-50">
 			{/* Header */}
@@ -148,7 +154,7 @@ export default function StayScapeSearchResults() {
 								<button type="button" className="text-sm font-medium text-gray-700 hover:text-gray-900">
 									Become a host
 								</button>
-								<button type="button" className="bg-pink-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-pink-600">
+								<button type="button" className="bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-pink-700">
 									Try hosting
 								</button>
 								<button type="button" className="p-2 rounded-full bg-gray-100 hover:bg-gray-200" aria-label="Open menu">
@@ -193,8 +199,12 @@ export default function StayScapeSearchResults() {
 				<main>
 				<h2 className="sr-only">Search results{searchQuery ? ` for ${searchQuery}` : ''}</h2>
 				<HtmlSnippets source={raw} navigateToDetails={(product) => {
-				// navigate("/done") 
-				navigate('/stayscape_details', { state: { product } });
+				// navigate("/done")
+				// Also encode the listing in the URL so the detail page can
+				// recover it without location.state (direct link, refresh,
+				// or a crawler like Lighthouse).
+				const slug = slugifyTitle(extractSnippetTitle(product));
+				navigate(slug ? `/stayscape_details/${slug}` : '/stayscape_details', { state: { product } });
 
 			}}
 				query={searchQuery} setResultsLoaded={setResultsLoaded}

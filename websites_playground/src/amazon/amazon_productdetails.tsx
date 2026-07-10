@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, ShoppingCart, Menu, ChevronDown, Star, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import HtmlSnippets from './htlmSnippersAmazon';
-import { useLocation, useNavigate } from 'react-router-dom';
+import HtmlSnippets, { findSnippetHtmlBySlug } from './htlmSnippersAmazon';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { extractProductFromHtml, ParsedProduct } from './extractAmazonProductDetail';
 import { set } from 'date-fns';
+
+// Same three files amazon_searchresults.tsx searches; tried in order when a
+// product must be recovered from the URL alone (no location.state).
+const CANDIDATE_FILES = ["amazon_shoes_results.txt", "amazon_headphones_results.txt", "amazon_milk_results.txt"];
 
 interface Product {
 	id: number;
@@ -62,17 +66,49 @@ export default function RiverBuyProductDetail() {
 
 	const navigate = useNavigate();
 	const location = useLocation();
+	const { slug } = useParams<{ slug?: string }>();
 
 	const categories = ['All', 'Electronics', 'Computers', 'Smart Home', 'Arts & Crafts', 'Automotive', 'Baby', 'Beauty', 'Books', 'Fashion', 'Food', 'Health', 'Home', 'Sports', 'Toys'];
 
+	// location.state carries the product HTML when the user clicked here from
+	// search results — cheap, no refetch needed. But state doesn't survive a
+	// direct link, a page refresh, or a crawler (e.g. Lighthouse) opening the
+	// URL on its own, all of which previously left this page with nothing to
+	// render. When state is missing, fall back to looking the product up by
+	// the :slug URL param instead.
+	const stateProduct = (location.state as { product?: string } | null)?.product ?? null;
+	const [product, setProductHtml] = useState<string | null>(stateProduct);
+	const [lookupStatus, setLookupStatus] = useState<'ready' | 'loading' | 'not-found'>(
+		stateProduct ? 'ready' : (slug ? 'loading' : 'not-found')
+	);
 
-	// Get productId from location state
-	const { product } = location.state as { product: string };
 	useEffect(() => {
-		setSelectedProduct(extractProductFromHtml(product));
-	}, [location.state]);
+		if (stateProduct) {
+			setProductHtml(stateProduct);
+			setLookupStatus('ready');
+			return;
+		}
+		if (!slug) {
+			setLookupStatus('not-found');
+			return;
+		}
+		let cancelled = false;
+		setLookupStatus('loading');
+		findSnippetHtmlBySlug(CANDIDATE_FILES, slug).then((html) => {
+			if (cancelled) return;
+			if (html) {
+				setProductHtml(html);
+				setLookupStatus('ready');
+			} else {
+				setLookupStatus('not-found');
+			}
+		});
+		return () => { cancelled = true; };
+	}, [slug, stateProduct]);
 
-	// console.log('Product ID from state:', extractProductFromHtml(product));
+	useEffect(() => {
+		if (product) setSelectedProduct(extractProductFromHtml(product));
+	}, [product]);
 
 
 
@@ -171,6 +207,19 @@ export default function RiverBuyProductDetail() {
 				{/* Raw HTML Content Display */}
 				<div className="flex-1 p-4">
 					{/* <HtmlSnippets renderMode="detail" source={product} /> */}
+					{lookupStatus === 'loading' && (
+						<p className="text-center text-gray-600 py-12" role="status">Loading product…</p>
+					)}
+					{lookupStatus === 'not-found' && (
+						<div className="text-center py-12" role="alert">
+							<h1 className="text-xl font-semibold text-gray-900 mb-2">Product not found</h1>
+							<p className="text-gray-600 mb-4">We couldn't find a product matching this link.</p>
+							<button type="button" className="text-blue-600 hover:text-blue-800 font-medium" onClick={() => navigate('/riverbuy_search')}>
+								Back to search
+							</button>
+						</div>
+					)}
+					{lookupStatus === 'ready' && (
 					<div className="min-h-screen bg-gray-100 py-8">
 						<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 							<div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -207,7 +256,7 @@ export default function RiverBuyProductDetail() {
 										</div>
 
 										<div className="border-t border-b py-4 my-4">
-											<h3 className="font-semibold text-gray-900 mb-2">About this item</h3>
+											<h2 className="font-semibold text-gray-900 mb-2">About this item</h2>
 											<p className="text-gray-700 mb-3">{selectedProduct?.name}</p>
 
 
@@ -280,6 +329,7 @@ export default function RiverBuyProductDetail() {
 							</div>
 						</div>
 					</div>
+					)}
 
 
 

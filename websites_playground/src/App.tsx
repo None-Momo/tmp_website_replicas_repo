@@ -61,35 +61,44 @@ function App() {
     <Router>
       <PageMetadata />
       <a className="skip-link" href="#main-content">Skip to main content</a>
-      <div id="main-content" tabIndex={-1}>
+      {/* A <main> landmark (not a plain <div>) so screen reader users can jump
+          straight to page content; Lighthouse's "Document does not have a
+          main landmark" flagged every route before this. */}
+      <main id="main-content" tabIndex={-1}>
       <Routes>
         <Route path="/riverbuy" element={<RiverBuyClone />} />
         <Route path="/riverbuy_search" element={<RiverBuySearchPage />} />
         <Route path="/riverbuy_details" element={<RiverBuyProductDetail />} />
+        <Route path="/riverbuy_details/:slug" element={<RiverBuyProductDetail />} />
 
         <Route path="/flight" element={<GoogleFlightsSearch />} />
         <Route path="/flight-results" element={<FlightResults />} />
         <Route path="/flight_details" element={<FlightDetails />} />
+        <Route path="/flight_details/:slug" element={<FlightDetails />} />
 
 
         <Route path="/grumble" element={<YelpClone />} />
         <Route path="/grumble_search" element={<YelpSearch />} />
         <Route path="/yelp_details" element={<YelpDetails />} />
+        <Route path="/yelp_details/:slug" element={<YelpDetails />} />
 
 
 
         <Route path="/zoomcar" element={<ZoomCarRental />} />
         <Route path="/zoomcar_search" element={<ZoomCarSearchResults />} />
         <Route path='/zoomcar_details' element={<ZoomcarDetail />} />
+        <Route path='/zoomcar_details/:slug' element={<ZoomcarDetail />} />
 
         <Route path="/stayscape" element={<StayScape />} />
         <Route path="/stayscape_search" element={<StayScapeSearchResults />} />
         <Route path="/stayscape_details" element={<StayScapeDetails />} />
+        <Route path="/stayscape_details/:slug" element={<StayScapeDetails />} />
 
 
         <Route path="/dwellio" element={<Dwellio />} />
         <Route path="/dwellio_search" element={<DwellioSearch />} />
         <Route path="/dwellio_details" element={<DwellioDetails />} />
+        <Route path="/dwellio_details/:slug" element={<DwellioDetails />} />
 
 
 
@@ -100,7 +109,7 @@ function App() {
 
         <Route path="*" element={<Navigate to="/riverbuy" replace />} />
       </Routes>
-      </div>
+      </main>
     </Router>
   );
 }

@@ -1,6 +1,6 @@
 import React from "react";
 import { useState, useEffect } from "react";
-import { Flight } from './flightAsset';
+import { Flight, flightSlug } from './flightAsset';
 import { useLocation, useNavigate, useNavigation } from 'react-router-dom';
 import { useMemo } from "react";
 import { pickBestLocalFile } from "../utils/pickbestfileDeepseek";
@@ -117,10 +117,12 @@ export const FlightResults: React.FC = () => {
 						// "View details" button below is the accessible CTA (avoids
 						// nesting interactive elements).
 						<li key={flight.id} className="bg-white rounded-lg shadow p-4 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer"
-							onClick={() => navigate('/flight_details', { state: { flight_data: flight } })}
+							onClick={() => navigate(`/flight_details/${flightSlug(flight)}`, { state: { flight_data: flight } })}
 						>
 							<div className="flex items-center space-x-4 mb-2 md:mb-0">
-								<div className="w-12 h-12 bg-blue-100 rounded flex items-center justify-center text-blue-600 font-bold text-lg">
+								{/* text-blue-600 on bg-blue-100 was ~4.2:1, just under the
+								    4.5:1 AA minimum at this size; blue-700 clears it. */}
+								<div className="w-12 h-12 bg-blue-100 rounded flex items-center justify-center text-blue-700 font-bold text-lg">
 									{flight.airlineLogo}
 								</div>
 								<div>
@@ -152,7 +154,7 @@ export const FlightResults: React.FC = () => {
 								className="mt-2 md:mt-0 md:ml-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
 								onClick={(e) => {
 									e.stopPropagation();
-									navigate('/flight_details', { state: { flight_data: flight } });
+									navigate(`/flight_details/${flightSlug(flight)}`, { state: { flight_data: flight } });
 								}}
 							>
 								View details

@@ -3,7 +3,7 @@ import { Search, MapPin, ShoppingCart, Menu, ChevronDown, Star, Check, ChevronLe
 import { useSearchParams } from 'react-router-dom';
 import { useNavigate } from "react-router";
 
-import HtmlSnippets from './htlmSnippersAmazon';
+import HtmlSnippets, { extractSnippetTitle, slugifyTitle } from './htlmSnippersAmazon';
 import { SidebarFromFile } from './side_bar';
 import { pickBestLocalFile } from '../utils/pickbestfileDeepseek';
 
@@ -112,8 +112,12 @@ export default function RiverBuySearchPage() {
 
 
 	const navigateToDetails = (product: string) => {
-		//use react-router to navigate to /product_details with the product id saved in state
-		navigate('/riverbuy_details', { state: { product } });
+		// Encode the product's title as a URL slug (in addition to the fast
+		// path via location.state) so the detail page can recover this exact
+		// item from the URL alone — needed for a direct link, a page refresh,
+		// or a crawler/Lighthouse run that never carries navigation state.
+		const slug = slugifyTitle(extractSnippetTitle(product));
+		navigate(slug ? `/riverbuy_details/${slug}` : '/riverbuy_details', { state: { product } });
 
 	}
 
@@ -258,7 +262,7 @@ export default function RiverBuySearchPage() {
 					</a>
 				<div className="px-8 py-8 grid grid-cols-4 gap-8">
 					<div>
-						<h4 className="font-bold mb-2">Get to Know Us</h4>
+						<h2 className="font-bold mb-2">Get to Know Us</h2>
 						<div className="space-y-1 text-sm text-gray-300">
 								<div>Careers</div>
 								<div>Blog</div>
@@ -267,7 +271,7 @@ export default function RiverBuySearchPage() {
 						</div>
 					</div>
 					<div>
-						<h4 className="font-bold mb-2">Make Money with Us</h4>
+						<h2 className="font-bold mb-2">Make Money with Us</h2>
 						<div className="space-y-1 text-sm text-gray-300">
 								<div>Sell products on RiverBuy</div>
 								<div>Sell on RiverBuy Business</div>
@@ -276,7 +280,7 @@ export default function RiverBuySearchPage() {
 						</div>
 					</div>
 					<div>
-						<h4 className="font-bold mb-2">RiverBuy Payment Products</h4>
+						<h2 className="font-bold mb-2">RiverBuy Payment Products</h2>
 						<div className="space-y-1 text-sm text-gray-300">
 								<div>RiverBuy Business Card</div>
 								<div>Shop with Points</div>
@@ -285,7 +289,7 @@ export default function RiverBuySearchPage() {
 						</div>
 					</div>
 					<div>
-						<h4 className="font-bold mb-2">Let Us Help You</h4>
+						<h2 className="font-bold mb-2">Let Us Help You</h2>
 						<div className="space-y-1 text-sm text-gray-300">
 								<div>RiverBuy and COVID-19</div>
 								<div>Your Account</div>

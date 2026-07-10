@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Car } from 'lucide-react';
-import HtmlSnippets from '../amazon/htlmSnippersAmazon';
+import HtmlSnippets, { extractSnippetTitle, slugifyTitle } from '../amazon/htlmSnippersAmazon';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 
 interface CarData {
@@ -17,25 +17,33 @@ interface CarData {
 	image: string;
 }
 
-const ZoomCarSearchResults = () => {
+// Only one file this page ever renders; hoisted + exported (a static
+// string, no props/state used) so zoomcar_detail.tsx can reuse the exact
+// same styling and candidate-file list when it has to recover a car from a
+// URL slug instead of from navigation state.
+export const CANDIDATE_FILES = ["avis_car_elements.txt"];
 
-
-	const customCSS = `
+export const customCSS = `
 	.choice-icon-badge{ background-color:rgb(16, 14, 14) !important; color:white; font-weight:bold; border-radius:4px; padding:2px 6px; font-size:12px; }
 	img.img-responsive{ display:none !important; }
 	.avilcardtl>h3{ font-size:1.25rem; font-weight:bold; color:#1a202c; margin-bottom:0.5rem; }
 	.payatcntr, .paynow{ font-size:16px; font-weight:700; margin-top:0.2rem; display: flex; flex-direction: column;  align-items: center; justify-content: flex-start; gap: 0.5rem; }
 	div.paybtndtl{display: flex; gap: 5.5rem;}
 	.pay-later-default{ padding: 0.5rem 1rem; font-weight: 600; font-size: 0.9rem; border: 2px solid rgb(0, 0, 0);  color: #1a202c;  }
-	.paynow>a{padding: 0.5rem 1rem; font-weight: 600; font-size: 0.9rem; color:white; background-color: #e53e3e; border: 2px solid rgb(255, 255, 255);}
-	.savedata{font-size:9px; font-weight:300; color:rgb(132, 131, 131) ; margin-top:0.2rem;}
+	/* #e53e3e + white text was ~3.9:1, below the 4.5:1 AA minimum; #b91c1c
+	   clears it (~6.5:1). The id/class rule below backs this up in case the
+	   scraped markup's own "Pay Now" button isn't reached by ".paynow>a". */
+	.paynow>a{padding: 0.5rem 1rem; font-weight: 600; font-size: 0.9rem; color:white; background-color: #b91c1c; border: 2px solid rgb(255, 255, 255);}
+	#res-vehicles-pay-now, .btn-primary-avis, .pay-now-primary { background-color: #b91c1c !important; color: #ffffff !important; }
+	/* rgb(132,131,131) on white was ~3.8:1; rgb(89,89,89) clears 4.5:1. */
+	.savedata{font-size:9px; font-weight:300; color:rgb(89, 89, 89) ; margin-top:0.2rem;}
 	.four-seats-feat::after { content: " Seats Available"; color: gray;font-size: 14px;}
 	.four-bags-feat::after { content: " Luggage Available"; color: gray;font-size: 14px;}
 	.tableDiv.vehicle-features { display: flex;flex-direction: column;}
 	img{display:none !important;}
 	`
 
-
+const ZoomCarSearchResults = () => {
 
 
 	// State for search filters
@@ -342,7 +350,11 @@ const ZoomCarSearchResults = () => {
 									console.log("Navigating to details with car data:", car_data);
 									//navigate to done page with the selected car details
 									// navigate("/done")
-									navigate("/zoomcar_details", { state: { car_data } })
+									// Also encode the vehicle in the URL so the detail page can
+									// recover it without location.state (direct link, refresh,
+									// or a crawler like Lighthouse).
+									const slug = slugifyTitle(extractSnippetTitle(car_data));
+									navigate(slug ? `/zoomcar_details/${slug}` : "/zoomcar_details", { state: { car_data } })
 
 								}}
 								customCSSProp={customCSS}

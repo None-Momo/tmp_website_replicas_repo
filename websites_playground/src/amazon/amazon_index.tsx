@@ -214,7 +214,9 @@ const RiverBuyClone: React.FC = () => {
                     />
                   </div>
                   {product.discount && (
-                    <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                    // bg-red-500 + white text is ~3.8:1, below the 4.5:1 AA
+                    // minimum for this text size; red-600 clears it (~5.3:1).
+                    <span className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
                       {product.discount}% OFF
                     </span>
                   )}
@@ -225,7 +227,12 @@ const RiverBuyClone: React.FC = () => {
 	                <h3 className="text-sm font-medium mb-1 line-clamp-2">
                   {product.title}
                 </h3>
-                <div className="flex items-center mb-1" aria-label={`${product.rating} out of 5 stars, ${product.reviews.toLocaleString()} reviews`}>
+                {/* A plain <div> has role="generic", which doesn't support a
+                    naming attribute (Lighthouse: "prohibited ARIA attribute"
+                    for aria-label on a div); role="img" is the standard
+                    pattern for a star-rating rendered as decorative icons
+                    with one accessible summary. */}
+                <div role="img" className="flex items-center mb-1" aria-label={`${product.rating} out of 5 stars, ${product.reviews.toLocaleString()} reviews`}>
                   <div className="flex mr-1">{renderStars(product.rating)}</div>
                   <span className="text-xs text-gray-600" aria-hidden="true">({product.reviews.toLocaleString()})</span>
                 </div>

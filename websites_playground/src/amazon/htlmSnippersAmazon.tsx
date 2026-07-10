@@ -6,7 +6,7 @@ import { DEEPSEEK_API_KEY } from "../utils/deepseek_key";
 type RenderMode = "div" | "iframe" | "detail" | "sidebar";
 
 
-function makeSrcDoc(snippetHtml: string, customCSS: string) {
+export function makeSrcDoc(snippetHtml: string, customCSS: string) {
 
 	// console.log("Custom CSS being used:", customCSS || "No custom CSS");
 
@@ -14,9 +14,20 @@ function makeSrcDoc(snippetHtml: string, customCSS: string) {
 	const parser = new DOMParser();
 	const doc = parser.parseFromString(snippetHtml, "text/html");
 
-	// Remove all href attributes from <a> elements
+	// Remove all href attributes from <a> elements (the whole card already
+	// has its own click handler; a live href would let a stray click escape
+	// the sanctioned "open details" / "open in maps" affordances).
+	// Once href is gone, a plain <a> defaults to role="generic", which is not
+	// allowed to carry a naming attribute (Lighthouse: "prohibited ARIA
+	// attributes") — so drop aria-label/aria-labelledby too, UNLESS the
+	// scraped markup already set an explicit role (e.g. role="button"),
+	// which legitimizes the name and should be left alone.
 	doc.querySelectorAll("a").forEach(a => {
 		a.removeAttribute("href");
+		if (!a.hasAttribute("role")) {
+			a.removeAttribute("aria-label");
+			a.removeAttribute("aria-labelledby");
+		}
 	});
 
 	// Serialize back to string
@@ -48,7 +59,7 @@ function makeSrcDoc(snippetHtml: string, customCSS: string) {
 }
 
 
-const customCSS = `
+export const customCSS = `
   /* Example: override title/link look */
   .snippet h2 a { color: #111827 !important; }
   .snippet h2 a:hover { text-decoration: underline !important; }
@@ -116,7 +127,7 @@ function parsePriceRangeLabel(label: string): { min: number; max: number } | nul
 
 /** First dollar amount in a snippet = its current price (the a-offscreen
  *  current price precedes the strikethrough list price in Amazon markup). */
-function extractSnippetPrice(html: string): number | null {
+export function extractSnippetPrice(html: string): number | null {
 	const match = html.match(/\$\s?(\d{1,5}(?:\.\d{1,2})?)/);
 	return match ? parseFloat(match[1]) : null;
 }
@@ -125,7 +136,7 @@ function extractSnippetPrice(html: string): number | null {
  *  etc.) so each card gets a unique accessible name. Works for both the Amazon
  *  product markup and the Yelp/Grumble business markup this component renders.
  *  Falls back to the image alt text or the first substantial text run. */
-function extractSnippetTitle(html: string): string {
+export function extractSnippetTitle(html: string): string {
 	try {
 		const doc = new DOMParser().parseFromString(html, 'text/html');
 		const root = doc.querySelector('.snippet') ?? doc.body ?? doc;
@@ -149,13 +160,13 @@ function extractSnippetTitle(html: string): string {
 	}
 }
 
-/** Slugify a title for a stable, unique data-testid. */
-function slugifyTitle(title: string): string {
+/** Slugify a title for a stable, unique data-testid (and detail-page URL). */
+export function slugifyTitle(title: string): string {
 	return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 50);
 }
 
 /** Heuristics to split a big text file into discrete HTML snippets */
-function splitSnippets(text: string, delimiter?: string): string[] {
+export function splitSnippets(text: string, delimiter?: string): string[] {
 	if (delimiter) {
 		return text.split(delimiter).map(s => s.trim()).filter(Boolean);
 	}
@@ -175,8 +186,12 @@ function splitSnippets(text: string, delimiter?: string): string[] {
 	return text.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
 }
 
-/** Sanitize HTML safely before injecting into the DOM */
-function sanitize(html: string): string {
+/** Sanitize HTML safely before injecting into the DOM. Also repairs a handful
+ *  of recurring accessibility defects found in the scraped source markup
+ *  (real Amazon/Yelp/Airbnb/Zillow/Avis DOM snippets) that DOMPurify itself
+ *  doesn't address, since DOMPurify only strips unsafe content — it doesn't
+ *  validate ARIA correctness. */
+export function sanitize(html: string): string {
 		const clean = DOMPurify.sanitize(html, {
 			USE_PROFILES: { html: true },
 			ADD_ATTR: ["target", "rel", "aria-label", "role", "alt", "data-*"],
@@ -187,8 +202,107 @@ function sanitize(html: string): string {
 		doc.querySelectorAll("img:not([alt])").forEach((img) => {
 			img.setAttribute("alt", "");
 		});
+
+		// "[aria-*] attributes do not have valid values": some scraped Amazon
+		// markup carries aria-hidden="List: $139.99" (a stray text value)
+		// instead of the boolean "true"/"false" the spec requires. An invalid
+		// value means assistive tech ignores the attribute anyway, so it's
+		// safe to simply drop it rather than guess an intended value.
+		doc.querySelectorAll("[aria-hidden]").forEach((el) => {
+			const val = el.getAttribute("aria-hidden");
+			if (val !== "true" && val !== "false") {
+				el.removeAttribute("aria-hidden");
+			}
+		});
+
+		// "[aria-hidden=true] elements contain focusable descendants": some
+		// scraped Airbnb markup wraps a real, meaningful control (e.g. a
+		// "Show price breakdown" button) in aria-hidden="true". That hides
+		// genuinely useful content from screen readers while leaving it
+		// keyboard-focusable — the worst of both. The safest fix is to stop
+		// hiding it.
+		doc.querySelectorAll('[aria-hidden="true"]').forEach((el) => {
+			if (el.querySelector('button, a[href], input, select, textarea, [tabindex]')) {
+				el.removeAttribute("aria-hidden");
+			}
+		});
+
+		// "List items (<li>) are not contained within <ul>/<ol>/<menu>": the
+		// snippet splitter (see splitSnippets) chops one big scraped <ul> into
+		// one fragment per business/listing, so each fragment's root is often
+		// a bare <li> with no list parent. Re-wrap it rather than renaming the
+		// tag, so any customCSS selector like "li.some-class {...}" still
+		// matches.
+		Array.from(doc.body.children).forEach((el) => {
+			if (el.tagName.toLowerCase() === "li") {
+				const ul = doc.createElement("ul");
+				ul.setAttribute("style", "list-style:none;margin:0;padding:0;");
+				el.replaceWith(ul);
+				ul.appendChild(el);
+			}
+		});
+
+		// "Buttons/links do not have an accessible name": a few scraped
+		// widgets (an Avis "i" popover trigger, a Zillow card's "..." menu
+		// button) are icon-only with no text and no aria-label. Where the
+		// markup carries the info elsewhere (a popover's data-content/title,
+		// or a menu toggle's aria-haspopup), derive a reasonable label from
+		// it instead of leaving the control silently unlabeled.
+		doc.querySelectorAll('button, [role="button"]').forEach((el) => {
+			const hasName =
+				el.getAttribute("aria-label") ||
+				el.getAttribute("aria-labelledby") ||
+				(el.textContent || "").trim().length > 0;
+			if (hasName) return;
+
+			if (el.hasAttribute("aria-haspopup")) {
+				el.setAttribute("aria-label", "More options");
+				return;
+			}
+
+			const hint = el.getAttribute("data-content") || el.getAttribute("data-original-title") || el.getAttribute("title");
+			if (hint) {
+				const text = hint.replace(/<[^>]*>/g, "").trim();
+				if (text) el.setAttribute("aria-label", text.slice(0, 150));
+			}
+		});
+
 		return doc.body.innerHTML;
 	}
+
+/** Fetch each candidate data file, split it the same way search results do,
+ *  and return the fully-rendered detail HTML (via makeSrcDoc) for the first
+ *  snippet whose title slugifies to `slug`. Lets a detail page recover its
+ *  data from the URL alone — direct link, refresh, or a crawler with no
+ *  navigation state — using the exact same title-extraction logic the search
+ *  results page used to build that slug in the first place, so the two never
+ *  disagree. */
+export async function findSnippetHtmlBySlug(
+	files: string[],
+	slug: string,
+	customCSSProp?: string,
+	minLength = 120,
+): Promise<string | null> {
+	for (const file of files) {
+		try {
+			const sourceUrl = new URL(`/scraped_data/${file}`, window.location.origin).toString();
+			const res = await fetch(sourceUrl);
+			if (!res.ok) continue;
+			const text = await res.text();
+			const snippets = splitSnippets(text).filter(s => s.length >= minLength);
+			for (const raw of snippets) {
+				const cleaned = sanitize(raw);
+				const title = extractSnippetTitle(cleaned);
+				if (title && slugifyTitle(title) === slug) {
+					return makeSrcDoc(cleaned, customCSSProp ?? customCSS);
+				}
+			}
+		} catch {
+			// try the next candidate file
+		}
+	}
+	return null;
+}
 
 export const HtmlSnippets: React.FC<HtmlSnippetsProps> = ({
 	source,

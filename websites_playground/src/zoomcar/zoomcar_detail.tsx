@@ -1,29 +1,69 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { useLocation } from "react-router-dom";
 import { Car } from 'lucide-react';
+import { findSnippetHtmlBySlug } from '../amazon/htlmSnippersAmazon';
+import { customCSS, CANDIDATE_FILES } from './zoomcar_searchresults';
 
 export const ZoomcarDetail: React.FC = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const [carData, setCarData] = useState<any>(null);
+	const { slug } = useParams<{ slug?: string }>();
+	const stateCarData = (location?.state as { car_data?: string } | null)?.car_data ?? null;
+	const [carData, setCarData] = useState<string | null>(stateCarData);
 
-	// get car data from state
+	// location.state is the fast path when navigating from search results.
+	// It's absent on a direct link, a refresh, or a crawler (e.g. Lighthouse)
+	// opening this URL cold — previously leaving the page permanently on
+	// "No car data available." Fall back to recovering the vehicle from the
+	// :slug URL param in that case.
+	const [lookupStatus, setLookupStatus] = useState<'ready' | 'loading' | 'not-found'>(
+		stateCarData ? 'ready' : (slug ? 'loading' : 'not-found')
+	);
+
 	useEffect(() => {
-		const state = location?.state;
-		// console.log("Location state:", state);
-		if (state && state.car_data) {
-			setCarData(state.car_data);
+		if (stateCarData) {
+			setCarData(stateCarData);
+			setLookupStatus('ready');
+			return;
 		}
-	}, [location]);
+		if (!slug) {
+			setLookupStatus('not-found');
+			return;
+		}
+		let cancelled = false;
+		setLookupStatus('loading');
+		findSnippetHtmlBySlug(CANDIDATE_FILES, slug, customCSS).then((html) => {
+			if (cancelled) return;
+			if (html) {
+				setCarData(html);
+				setLookupStatus('ready');
+			} else {
+				setLookupStatus('not-found');
+			}
+		});
+		return () => { cancelled = true; };
+	}, [stateCarData, slug]);
 
 
 	// Removed whole-page onClick -> /done (a click-trap): the "open its details"
 	// task should stay on the details page, not jump to /done on any click.
 	return (<div>
 		{/* <h1>Zoomcar Detail Page</h1> */}
-		{carData ? (
+		{lookupStatus === 'loading' && (
+			<p className="text-center text-gray-600 py-12" role="status">Loading car…</p>
+		)}
+		{lookupStatus === 'not-found' && (
+			<div className="text-center py-12" role="alert">
+				<h1 className="text-xl font-semibold text-gray-900 mb-2">Car not found</h1>
+				<p className="text-gray-600 mb-4">We couldn't find a car matching this link.</p>
+				<button type="button" className="text-red-600 hover:underline" onClick={() => navigate('/zoomcar')}>
+					Back to search
+				</button>
+			</div>
+		)}
+		{lookupStatus === 'ready' && carData ? (
 			<div className="min-h-screen bg-gray-50">
 				{/* Header */}
 				<header className="bg-white text-white py-4 px-6">
@@ -46,9 +86,7 @@ export const ZoomcarDetail: React.FC = () => {
 				{/* Render other car details here */}
 				<div dangerouslySetInnerHTML={{ __html: carData }} />
 			</div>
-		) : (
-			<p>No car data available.</p>
-		)}
+		) : null}
 	</div>)
 
 };

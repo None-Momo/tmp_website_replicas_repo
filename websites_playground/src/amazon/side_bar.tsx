@@ -94,7 +94,10 @@ export const SidebarFromFile: React.FC<SidebarProps> = ({
 							color: "black"
 						}}
 					>
-						<h3 style={{ fontWeight: 700, marginBottom: 8, marginTop: 0, fontSize: "inherit" }}>{group.header}</h3>
+						{/* h2, not h3: this follows the page's own h1 ("Search Results
+						    for ...") directly, and skipping to h3 flagged as an
+						    out-of-order heading structure in Lighthouse. */}
+						<h2 style={{ fontWeight: 700, marginBottom: 8, marginTop: 0, fontSize: "inherit" }}>{group.header}</h2>
 						<ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
 							{group.items.map((label, idx) => {
 								const key = `${group.header}::${label}`;

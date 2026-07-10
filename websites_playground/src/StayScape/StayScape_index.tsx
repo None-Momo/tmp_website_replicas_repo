@@ -42,7 +42,9 @@ const ScapeStay: React.FC = () => {
 							<a href="#search-stays" className="text-gray-700 hover:text-pink-500">Experiences</a>
 							<a href="#search-stays" className="text-gray-700 hover:text-pink-500">Host</a>
 					</nav>
-					<button type="button" className="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600">Sign in</button>
+					{/* bg-pink-500 + white text is ~3.5:1, below the 4.5:1 AA
+					    minimum; pink-600 clears it (~4.6:1). */}
+					<button type="button" className="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700">Sign in</button>
 				</div>
 			</header>
 
@@ -103,7 +105,7 @@ const ScapeStay: React.FC = () => {
 							<button
 								type="button"
 								onClick={handleSearch}
-							className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 flex items-center space-x-2"
+							className="bg-pink-600 text-white px-6 py-2 rounded-lg hover:bg-pink-700 flex items-center space-x-2"
 						>
 								<Search aria-hidden="true" />
 							<span>Search</span>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { pickBestLocalFile } from '../utils/pickbestfileDeepseek';
-import HtmlSnippets from '../amazon/htlmSnippersAmazon';
+import HtmlSnippets, { extractSnippetTitle, slugifyTitle } from '../amazon/htlmSnippersAmazon';
 import Map from './map_comp';
 
 interface Review {
@@ -186,6 +186,34 @@ const mockCoffeeShops: CoffeeShop[] = [
   }
 ];
 
+// Hoisted out of the component (it's a static string, no props/state used)
+// so yelp_details.tsx can import and reuse the exact same styling when it
+// has to re-render a business card from a URL slug instead of from state.
+export const customCSS = `
+  li.y-css-mhg9c5 { list-style-type: none; display: inline-block; margin-right: 1rem; }
+  h3.y-css-hcgwj4{ font-size:0px }
+  .y-css-98gs0f{border: 1px solid white; background-color:rgb(220 38 38); color:white;
+  border-radius: 20px; padding: 0.4rem; font-size:0.75rem;
+   text-align: left; cursor: pointer; font-weight:600;}
+  h3.y-css-hcgwj4 > a { opacity:1; font-size: 1.25rem; font-weight: 600; margin: 0.5rem 0; }
+  div.y-css-1wz9c5l { font-size: 0.875rem; color: #555; margin-bottom: 0.5rem; }
+  div.hoverable__09f24___UXLO { transition: background-color 0.3s; }
+  p.y-css-oyr8zn{ color: #333; font-size: 0.875rem; line-height: 1.25rem; margin-bottom: 0.5rem; width: 80%; text-wrap: break-word; }
+  div.tag__09f24___FjcU y-css-mhg9c5 { font-size: 0.75rem; color: red; margin-right: 0.5rem; }
+  .mobile-text-medium__09f24__MZ1v6 y-css-dk7k8l { font-size: 0.875rem; color: #333; margin-bottom: 0.5rem; background-color:rgb(80, 10, 10); }
+  .ABP.y-css-pwt8yl, .y-css-pwt8yl{ display: flex; gap: 1rem; }
+  .y-css-12sjtgu { font-size: 0.875rem; color: #555; margin-bottom: 0.5rem;  display: flex; }
+  .y-css-12sjtgu>span { margin-left: 0.5rem; }
+  .y-css-12sjtgu > :first-child { margin-left: 0;}
+  .y-css-ifzvh4{display:none;}
+  .y-css-1y784sg{color:rgb(168, 120, 7) ; font-size:0.75rem; font-weight:600;}
+
+  `
+
+// Both files the search page can serve; searched in full when a business
+// must be recovered from the URL alone (no location.state).
+export const CANDIDATE_FILES = ["yelp_coffee.txt", "yelp_restaurants.txt"];
+
 export default function YelpSearch() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
@@ -253,27 +281,6 @@ export default function YelpSearch() {
 
 
 
-
-  const customCSS = `
-  li.y-css-mhg9c5 { list-style-type: none; display: inline-block; margin-right: 1rem; }
-  h3.y-css-hcgwj4{ font-size:0px }
-  .y-css-98gs0f{border: 1px solid white; background-color:rgb(220 38 38); color:white;  
-  border-radius: 20px; padding: 0.4rem; font-size:0.75rem;
-   text-align: left; cursor: pointer; font-weight:600;}
-  h3.y-css-hcgwj4 > a { opacity:1; font-size: 1.25rem; font-weight: 600; margin: 0.5rem 0; }
-  div.y-css-1wz9c5l { font-size: 0.875rem; color: #555; margin-bottom: 0.5rem; }
-  div.hoverable__09f24___UXLO { transition: background-color 0.3s; }
-  p.y-css-oyr8zn{ color: #333; font-size: 0.875rem; line-height: 1.25rem; margin-bottom: 0.5rem; width: 80%; text-wrap: break-word; }
-  div.tag__09f24___FjcU y-css-mhg9c5 { font-size: 0.75rem; color: red; margin-right: 0.5rem; }
-  .mobile-text-medium__09f24__MZ1v6 y-css-dk7k8l { font-size: 0.875rem; color: #333; margin-bottom: 0.5rem; background-color:rgb(80, 10, 10); }
-  .ABP.y-css-pwt8yl, .y-css-pwt8yl{ display: flex; gap: 1rem; }
-  .y-css-12sjtgu { font-size: 0.875rem; color: #555; margin-bottom: 0.5rem;  display: flex; }
-  .y-css-12sjtgu>span { margin-left: 0.5rem; }
-  .y-css-12sjtgu > :first-child { margin-left: 0;}
-  .y-css-ifzvh4{display:none;}
-  .y-css-1y784sg{color:rgb(168, 120, 7) ; font-size:0.75rem; font-weight:600;}
-  
-  `
 
   const toggleFavorite = (shopId: string) => {
     setShops(shops.map(shop =>
@@ -417,7 +424,11 @@ export default function YelpSearch() {
                 <HtmlSnippets source={raw} navigateToDetails={(product) => {
                   // e.preventDefault();
 
-                  navigate('/yelp_details', { state: { product } });
+                  // Also encode the business in the URL so the detail page
+                  // can recover it without location.state (direct link,
+                  // refresh, or a crawler like Lighthouse).
+                  const slug = slugifyTitle(extractSnippetTitle(product));
+                  navigate(slug ? `/yelp_details/${slug}` : '/yelp_details', { state: { product } });
                   // navigate("/done")
                 }}
                   query={searchTerm} setResultsLoaded={setResultsLoaded}
