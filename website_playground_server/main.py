@@ -1,5 +1,7 @@
 import json
 import os
+import re
+import time
 import uvicorn
 import configparser
 
@@ -7,27 +9,37 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request
 
-import openai
+from openai import OpenAI
 
 import tiktoken
 
 
+# Provider: OpenAI (was DeepSeek). Legacy deepseek_* config keys are still
+# read as fallbacks so an old config.ini keeps working. The API key comes
+# from the OPENAI_API_KEY env var or the gitignored config.ini — never from
+# source code.
 config = configparser.ConfigParser()
 config_path = os.path.join(os.path.dirname(__file__), 'config.ini')
 config.read(config_path)
-API_KEY = config.get("settings", "deepseek_api").split('#')[0].strip()
-raw_base_url = config.get("settings", "deepseek_base_url", fallback="https://api.deepseek.com").strip()
 
-normalized_base_url = raw_base_url.rstrip('/')
-if normalized_base_url.lower().endswith('/v1'):
-	normalized_base_url = normalized_base_url[:-3].rstrip('/')
 
-DEEPSEEK_BASE_URL = normalized_base_url or "https://api.deepseek.com"
-DEEPSEEK_MODEL = "deepseek-chat"
+def _config_value(*keys: str, fallback: str = "") -> str:
+	for key in keys:
+		value = config.get("settings", key, fallback="")
+		value = value.split('#')[0].strip()
+		if value:
+			return value
+	return fallback
 
-openai.api_key = API_KEY
-openai.api_base = DEEPSEEK_BASE_URL
-setattr(openai, "base_url", DEEPSEEK_BASE_URL)
+
+API_KEY = os.environ.get("OPENAI_API_KEY", "").strip() or _config_value("openai_api", "deepseek_api")
+# openai>=1.0 expects the versioned base URL (".../v1"); do not strip it.
+LLM_BASE_URL = _config_value("openai_base_url", "deepseek_base_url", fallback="https://api.openai.com/v1")
+LLM_MODEL = _config_value("model", "openai_model", fallback="gpt-4o-mini")
+
+# Explicit client: the legacy module-level shim (openai.api_key/base_url)
+# does not reliably configure requests in openai>=2.x.
+llm_client = OpenAI(api_key=API_KEY, base_url=LLM_BASE_URL)
 
 app = FastAPI()
 
@@ -78,7 +90,7 @@ async def get_llm_rec(request: Request):
 	
 		print("Received query:", query)
 		masked_key = API_KEY[:6] + "..." + API_KEY[-4:] if API_KEY and len(API_KEY) > 10 else "***"
-		print("DeepSeek API key:", masked_key)
+		print(f"LLM provider key: {masked_key} (model={LLM_MODEL})")
 	# print("File name:", filename)
 	# print("summaries", summaries)
 
@@ -128,8 +140,8 @@ async def get_llm_rec(request: Request):
 
 
 	# call openai API
-	response = openai.chat.completions.create(
-		model=DEEPSEEK_MODEL,
+	response = llm_client.chat.completions.create(
+		model=LLM_MODEL,
 		messages=messages,
 		temperature=0.0
 	)
@@ -238,8 +250,8 @@ async def generate_dynamic_page(request: Request):
 
     # Send to DeepSeek (OpenAI-compatible)
     try:
-        response = openai.chat.completions.create(
-            model=DEEPSEEK_MODEL,
+        response = llm_client.chat.completions.create(
+            model=LLM_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -266,7 +278,9 @@ async def pick_best_file(request: Request):
 	data = await request.json()
 	query = (data.get("query") or "").strip()
 	candidates = data.get("candidates") or []
-	model = data.get("model", "deepseek-chat")
+	# Always use the server-configured model: old frontends still send
+	# "deepseek-chat", which the OpenAI API would reject.
+	model = LLM_MODEL
 
 	if not query or not candidates:
 		return {"best": None}
@@ -279,7 +293,7 @@ async def pick_best_file(request: Request):
 	user = f'Query: "{query}"\nCandidates (JSON array): {json.dumps(candidates)}\nPick exactly one "best" from the list.'
 
 	try:
-		response = openai.chat.completions.create(
+		response = llm_client.chat.completions.create(
 			model=model,
 			messages=[
 				{"role": "system", "content": system},
@@ -299,6 +313,78 @@ async def pick_best_file(request: Request):
 	except (json.JSONDecodeError, Exception) as e:
 		print("pickBestFile error:", e)
 	return {"best": None}
+
+
+# ── MORPH telemetry ingestion ────────────────────────────────────────────────
+# The MORPH extension uploads study session logs here so interaction data is
+# stored server-side instead of only as a local browser download. Sessions are
+# written as JSON files under TELEMETRY_DATA_DIR (default: ./collected_data),
+# grouped by participant. To move this to real cloud storage later, replace
+# store_session_payload() with an S3/GCS upload — the HTTP contract with the
+# extension stays the same. No credentials are read here; cloud credentials
+# must come from environment variables when that swap happens.
+
+TELEMETRY_DATA_DIR = os.environ.get(
+	"TELEMETRY_DATA_DIR",
+	os.path.join(os.path.dirname(__file__), "collected_data"),
+)
+
+_SAFE_SEGMENT = re.compile(r"[^A-Za-z0-9._-]")
+
+
+def _safe_path_segment(value: str, fallback: str) -> str:
+	cleaned = _SAFE_SEGMENT.sub("_", (value or "").strip())[:80]
+	return cleaned or fallback
+
+
+def store_session_payload(participant_id: str, session_id: str, payload: dict) -> str:
+	"""Persist one session log; returns the storage location.
+
+	Local-disk implementation. Swap the body for a cloud SDK call (e.g.
+	boto3 put_object) to store in the cloud without touching the extension.
+	"""
+	participant_dir = os.path.join(TELEMETRY_DATA_DIR, _safe_path_segment(participant_id, "unknown_participant"))
+	os.makedirs(participant_dir, exist_ok=True)
+	filename = f"{_safe_path_segment(session_id, 'session')}.json"
+	path = os.path.join(participant_dir, filename)
+	with open(path, "w") as f:
+		json.dump(payload, f, indent=2)
+	return path
+
+
+@app.get("/telemetry/health")
+async def telemetry_health():
+	return {"ok": True, "storage": "local-disk", "dataDir": TELEMETRY_DATA_DIR}
+
+
+@app.post("/telemetry/sessions")
+async def upload_telemetry_sessions(request: Request):
+	"""
+	Accepts a batch of MORPH session logs:
+	{ "participantId": "P67", "uploadedAt": 123, "sessions": [ { "sessionId": "...", ... }, ... ] }
+	Each session is stored as one JSON file; re-uploads overwrite (idempotent).
+	"""
+	data = await request.json()
+	participant_id = str(data.get("participantId") or "unknown_participant")
+	sessions = data.get("sessions")
+	if not isinstance(sessions, list) or len(sessions) == 0:
+		return {"ok": False, "error": "No sessions provided."}
+
+	stored = []
+	for session in sessions:
+		if not isinstance(session, dict):
+			continue
+		session_id = str(session.get("sessionId") or f"session_{int(time.time() * 1000)}")
+		envelope = {
+			"participantId": participant_id,
+			"receivedAt": int(time.time() * 1000),
+			"session": session,
+		}
+		path = store_session_payload(participant_id, session_id, envelope)
+		stored.append({"sessionId": session_id, "storedAt": path})
+		print(f"[telemetry] stored session {session_id} for {participant_id} -> {path}")
+
+	return {"ok": True, "storedCount": len(stored), "stored": stored}
 
 
 if __name__ == "__main__":
