@@ -22,6 +22,11 @@ deepseek_base_url=${BASE_URL}
 EOF
 echo "Written config.ini (deepseek_base_url=${BASE_URL})"
 
+# Nginx listen port: cloud-provided PORT, defaulting to 3000 for local Docker
+PORT="${PORT:-3000}"
+sed -i "s/3000 default_server;/${PORT} default_server;/g" /etc/nginx/sites-available/default
+echo "nginx will listen on port ${PORT}"
+
 # Start backend in background (uvicorn, no reload in container)
 cd /app/website_playground_server
 python -c "
