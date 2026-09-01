@@ -1,26 +1,34 @@
 #!/bin/bash
 set -e
 
-# Require API key at runtime (injected into config.ini)
-if [ -z "$DEEPSEEK_API_KEY" ]; then
-  echo "Error: DEEPSEEK_API_KEY environment variable is required."
-  echo "Run the container with: docker run -e DEEPSEEK_API_KEY=your-key ..."
-  exit 1
+# OPENAI_API_KEY is optional (injected into config.ini when present). Without
+# it the app starts in LLM-disabled mode: the static study sites and MORPH
+# telemetry work normally and the LLM endpoints return 503.
+# DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL are deprecated aliases kept so old
+# deployments keep starting; OPENAI_* names are the primary configuration.
+if [ -z "$OPENAI_API_KEY" ] && [ -n "$DEEPSEEK_API_KEY" ]; then
+  echo "Warning: DEEPSEEK_API_KEY is deprecated; set OPENAI_API_KEY instead."
+  OPENAI_API_KEY="$DEEPSEEK_API_KEY"
+fi
+if [ -z "$OPENAI_API_KEY" ]; then
+  echo "No OPENAI_API_KEY set: starting in LLM-disabled mode (static sites and telemetry only)."
 fi
 
 CONFIG_DIR="/app/website_playground_server"
 CONFIG_FILE="$CONFIG_DIR/config.ini"
-BASE_URL="${DEEPSEEK_BASE_URL:-https://api.deepseek.com}"
+BASE_URL="${OPENAI_BASE_URL:-${DEEPSEEK_BASE_URL:-https://api.openai.com/v1}}"
+MODEL="${OPENAI_MODEL:-gpt-4o-mini}"
 
 # Write config.ini from environment
 mkdir -p "$CONFIG_DIR"
 cat > "$CONFIG_FILE" << EOF
 [settings]
 environment=py312
-deepseek_api=${DEEPSEEK_API_KEY}
-deepseek_base_url=${BASE_URL}
+openai_api=${OPENAI_API_KEY}
+openai_base_url=${BASE_URL}
+model=${MODEL}
 EOF
-echo "Written config.ini (deepseek_base_url=${BASE_URL})"
+echo "Written config.ini (openai_base_url=${BASE_URL}, model=${MODEL})"
 
 # Nginx listen port: cloud-provided PORT, defaulting to 3000 for local Docker
 PORT="${PORT:-3000}"

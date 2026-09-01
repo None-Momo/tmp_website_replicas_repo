@@ -8,6 +8,7 @@ import configparser
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request
+from fastapi.responses import JSONResponse
 
 from openai import OpenAI
 
@@ -34,12 +35,24 @@ def _config_value(*keys: str, fallback: str = "") -> str:
 
 API_KEY = os.environ.get("OPENAI_API_KEY", "").strip() or _config_value("openai_api", "deepseek_api")
 # openai>=1.0 expects the versioned base URL (".../v1"); do not strip it.
-LLM_BASE_URL = _config_value("openai_base_url", "deepseek_base_url", fallback="https://api.openai.com/v1")
-LLM_MODEL = _config_value("model", "openai_model", fallback="gpt-4o-mini")
+LLM_BASE_URL = os.environ.get("OPENAI_BASE_URL", "").strip() or _config_value("openai_base_url", "deepseek_base_url", fallback="https://api.openai.com/v1")
+LLM_MODEL = os.environ.get("OPENAI_MODEL", "").strip() or _config_value("model", "openai_model", fallback="gpt-4o-mini")
 
 # Explicit client: the legacy module-level shim (openai.api_key/base_url)
 # does not reliably configure requests in openai>=2.x.
-llm_client = OpenAI(api_key=API_KEY, base_url=LLM_BASE_URL)
+# The LLM is optional: the study's static sites and MORPH telemetry must run
+# without a key, so with no key configured the client stays None and the LLM
+# endpoints return 503 instead of attempting a request.
+llm_client = OpenAI(api_key=API_KEY, base_url=LLM_BASE_URL) if API_KEY else None
+if llm_client is None:
+	print("No OpenAI API key configured: LLM endpoints disabled (static sites and telemetry unaffected).")
+
+
+def _llm_disabled_response() -> JSONResponse:
+	return JSONResponse(
+		status_code=503,
+		content={"error": "LLM functionality is disabled on this deployment."},
+	)
 
 app = FastAPI()
 
@@ -67,6 +80,8 @@ async def get_llm_rec(request: Request):
 	"""
 	Endpoint to get LLM recommendations based on a query.
 	"""
+	if llm_client is None:
+		return _llm_disabled_response()
 	# Parse request body
 	data = await request.json()
 	query = data.get("query")
@@ -225,6 +240,8 @@ async def generate_dynamic_page(request: Request):
     """
     Generate a dynamic web page HTML snippet for a given page title.
     """
+    if llm_client is None:
+        return _llm_disabled_response()
     data = await request.json()
     page_name = data.get("pageName", "Untitled Page")
     site_context = data.get("siteContext", """
@@ -248,7 +265,7 @@ async def generate_dynamic_page(request: Request):
     Make sure it's a <div> or group of <div>s that can be injected directly into a React page.
     """
 
-    # Send to DeepSeek (OpenAI-compatible)
+    # Send to the OpenAI-compatible chat completions API
     try:
         response = llm_client.chat.completions.create(
             model=LLM_MODEL,
@@ -275,6 +292,8 @@ async def pick_best_file(request: Request):
 	Pick the single most relevant filename from a list for a user's query.
 	Uses the API key from config.ini; no key needed from the frontend.
 	"""
+	if llm_client is None:
+		return _llm_disabled_response()
 	data = await request.json()
 	query = (data.get("query") or "").strip()
 	candidates = data.get("candidates") or []
