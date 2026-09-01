@@ -267,6 +267,78 @@ export function sanitize(html: string): string {
 			}
 		});
 
+		// Scraped snippets are static by construction: their site's JS never
+		// ships, and makeSrcDoc strips every href. Anything inside that still
+		// claims interactivity is therefore a lie to assistive tech — Avis
+		// icon-only tooltip triggers (role="button" tabindex="0" title=""),
+		// Yelp photo-carousel arrows (invisible div[role=button] "Previous"/
+		// "Next"), Yelp hovercard spans (nameless tabindex=0), Zillow's
+		// card-wide <a tabindex="0"> data wrapper — all of them render as tab
+		// stops that do nothing, which reads as "Tab is broken" and litters
+		// the screen-reader tree with dead buttons. Strip focusability and
+		// fake button semantics wholesale; the renderer re-adds real controls
+		// deliberately (see the pay-CTA promotion below). Native <button>
+		// elements keep their semantics — pages delegate their activation.
+		doc.querySelectorAll("[tabindex]").forEach((el) => {
+			if (el.tagName.toLowerCase() === "button") return;
+			el.removeAttribute("tabindex");
+		});
+		doc.querySelectorAll('[role="button"]').forEach((el) => {
+			if (el.tagName.toLowerCase() === "button") return;
+			el.removeAttribute("role");
+			el.removeAttribute("aria-label");
+			el.removeAttribute("aria-labelledby");
+			el.removeAttribute("title");
+			// Widget-state attributes are meaningless (and for some,
+			// disallowed) on the generic element this becomes.
+			el.removeAttribute("aria-expanded");
+			el.removeAttribute("aria-haspopup");
+			el.removeAttribute("aria-pressed");
+			el.removeAttribute("aria-disabled");
+		});
+
+		// Zillow's per-card "Save" heart and "…" menu buttons render 0x0 in
+		// the replica (Zillow's CSS never loads) yet stay keyboard-focusable:
+		// invisible tab stops that do nothing. Worse, the menu button's only
+		// text lives in a VisuallyHidden span the Dwellio theme hides with
+		// display:none, leaving it nameless to assistive tech (axe:
+		// button-name). They are static card chrome here — make them spans.
+		doc.querySelectorAll("button.property-card-actions-btn, button.property-card-save").forEach((el) => {
+			const span = doc.createElement("span");
+			const cls = el.getAttribute("class");
+			if (cls) span.setAttribute("class", cls);
+			while (el.firstChild) span.appendChild(el.firstChild);
+			el.replaceWith(span);
+		});
+
+		// Zillow's photo-carousel group advertises "Use arrow keys to
+		// navigate", an instruction that cannot work without the site's JS —
+		// keep the group's name, drop the misleading instruction.
+		doc.querySelectorAll('[role="group"][aria-label]').forEach((el) => {
+			if ((el.getAttribute("aria-label") || "").toLowerCase().startsWith("property images")) {
+				el.setAttribute("aria-label", "Property images");
+			}
+		});
+
+		// The scraped Avis card's "Pay Later" / "Pay Now" CTAs are <a
+		// href="javascript:void(0)"> elements; with the href stripped they'd
+		// be plain unfocusable text — mouse users can still click them (the
+		// card routes any click), but keyboard and screen-reader users would
+		// get no control at all. Promote them (after the wholesale strip
+		// above) to real, uniquely named buttons; the page that renders them
+		// decides what activation does (results: open details via the card's
+		// key delegate; detail page: /done).
+		const payControls = doc.querySelectorAll("#res-vehicles-pay-later, #res-vehicles-pay-now");
+		if (payControls.length > 0) {
+			const carTitle = (doc.querySelector(".avilcardtl h3")?.textContent || "").trim();
+			payControls.forEach((el) => {
+				el.setAttribute("role", "button");
+				el.setAttribute("tabindex", "0");
+				const action = (el.textContent || "").trim();
+				if (carTitle && action) el.setAttribute("aria-label", `${action} for ${carTitle}`);
+			});
+		}
+
 		return doc.body.innerHTML;
 	}
 
@@ -329,6 +401,11 @@ export const HtmlSnippets: React.FC<HtmlSnippetsProps> = ({
 	useEffect(() => {
 		//only fetch id renderMode is not iframe
 		if (renderMode === "iframe" || renderMode === "detail") return;
+		// An empty source resolves to the app's own root URL, so the fetch
+		// would pull back index.html and render its boilerplate comments as
+		// "result cards" (announced to screen readers as real results).
+		// Dwellio passes source="" until its city -> dataset mapping settles.
+		if (!source) return;
 		// fetch the raw text file
 		let cancelled = false;
 
@@ -444,8 +521,14 @@ export const HtmlSnippets: React.FC<HtmlSnippetsProps> = ({
 			    pointer events on descendants routes every click to the card. */}
 			<style>{`article[data-testid^="result-card"] * { pointer-events: none; }`}</style>
 
-			{!raw && (
-				<div className="text-sm text-gray-500" role="status">Loading… {renderMode} </div>
+			{/* Only announce loading while there is actually a source to load:
+			    with an empty source (e.g. Dwellio before its city -> dataset
+			    mapping settles, or a bare search URL with no query) a
+			    permanent "Loading…" live region would mislead screen-reader
+			    users. Also don't leak the internal renderMode into the
+			    announced text. */}
+			{!raw && !!source && (
+				<div className="text-sm text-gray-500" role="status">Loading…</div>
 			)}
 
 			{/* Announce how many results are shown so screen reader users hear
@@ -519,27 +602,48 @@ export const HtmlSnippets: React.FC<HtmlSnippetsProps> = ({
 						const cardLabel = cardTitle
 							? `Open details for ${cardTitle}${cardPrice !== null ? `, priced at $${cardPrice}` : ''}`
 							: `Open search result ${idx + 1}`;
+						const cardHtml = customCSSProp ? makeSrcDoc(clean, customCSSProp) : makeSrcDoc(clean, customCSS);
+						// The card must NOT itself be role="button": the ARIA button
+						// role treats its whole subtree as presentational, so a screen
+						// reader flattens the card to a single stop (its aria-label)
+						// and none of the inner content — title, seats, prices, Pay
+						// Later / Pay Now — can be read sequentially. Instead the card
+						// is a plain article whose content stays in the accessibility
+						// tree, and the "open details" affordance is a real <button>
+						// stretched invisibly over the card (last in DOM order, so it
+						// reads after the content). Mouse clicks land on the article
+						// (descendants have pointer-events:none, see <style> above);
+						// the button's keyboard/AT activation synthesizes a click that
+						// bubbles to the same article handler.
 						return (
 							<article
-								onClick={(e) => {
-									// console.log("Snippet clicked", { idx });
-									e.preventDefault();
-									navigateToDetails?.(customCSSProp ? makeSrcDoc(clean, customCSSProp) : makeSrcDoc(clean, customCSS))
-								}}
-								onKeyDown={(e) => {
+								className="relative"
+								onClick={navigateToDetails ? () => navigateToDetails(cardHtml) : undefined}
+								onKeyDown={navigateToDetails ? (e) => {
 									if (e.key !== "Enter" && e.key !== " ") return;
+									// The overlay <button> synthesizes its own click on
+									// Enter/Space, which bubbles into onClick — handling
+									// it here too would navigate twice. This delegate is
+									// for the snippet's own role="button" controls (e.g.
+									// Pay Later / Pay Now), which have no native
+									// keyboard activation.
+									if ((e.target as HTMLElement).closest("button")) return;
 									e.preventDefault();
-									navigateToDetails?.(customCSSProp ? makeSrcDoc(clean, customCSSProp) : makeSrcDoc(clean, customCSS));
-								}}
-								role={navigateToDetails ? "button" : undefined}
-								tabIndex={navigateToDetails ? 0 : undefined}
-								aria-label={cardLabel}
+									navigateToDetails(cardHtml);
+								} : undefined}
 								data-testid={cardTitle ? `result-card-${slugifyTitle(cardTitle)}` : `result-card-${idx + 1}`}
 								key={idx}
-							// className="rounded border p-3 bg-white"
-							// eslint-disable-next-line react/no-danger
-							dangerouslySetInnerHTML={{ __html: customCSSProp ? makeSrcDoc(clean, customCSSProp) : makeSrcDoc(clean, customCSS) }}
-						/>
+							>
+								{/* eslint-disable-next-line react/no-danger */}
+								<div dangerouslySetInnerHTML={{ __html: cardHtml }} />
+								{navigateToDetails && (
+									<button
+										type="button"
+										className="absolute inset-0 h-full w-full bg-transparent border-0 cursor-pointer"
+										aria-label={cardLabel}
+									/>
+								)}
+							</article>
 					);
 				})}
 			</div>

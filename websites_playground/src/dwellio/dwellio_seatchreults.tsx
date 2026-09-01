@@ -164,7 +164,10 @@ const DwellioSearch: React.FC = () => {
 			</header>
 
 
-			<main>
+			{/* App.tsx already wraps every route in <main id="main-content">; a
+			    second, nested <main> here made duplicate main landmarks, which
+			    breaks screen-reader landmark navigation. */}
+			<div>
 				<h2 className="sr-only">Search results{searchQuery ? ` for ${searchQuery}` : ''}</h2>
 				{!resultsLoaded && searchQuery.trim() !== "" && (
 					<p className="text-gray-500 mb-4" role="status">Loading results...</p>
@@ -191,7 +194,7 @@ const DwellioSearch: React.FC = () => {
 					query={searchQuery} setResultsLoaded={setResultsLoaded}
 					orientation='grid' selectedFilters={selectedFilters}
 					customCSSProp={customCSS} />}
-			</main>
+			</div>
 		</div>
 	);
 };

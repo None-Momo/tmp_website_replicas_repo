@@ -82,6 +82,11 @@ export const YelpDetails: React.FC = () => {
 					</div>
 				</header>
 
+				{/* The injected snippet's own title is an <h3> (scraped markup);
+				    this sr-only h2 keeps the heading outline from skipping a
+				    level (h1 "grumble" -> h3), so heading navigation stays
+				    coherent. */}
+				<h2 className="sr-only">Business details</h2>
 				<div dangerouslySetInnerHTML={{ __html: product }} />
 				<button type="button" className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-blue-700" onClick={() => navigate("/done")}>Go to Done Page</button>
 			</div>

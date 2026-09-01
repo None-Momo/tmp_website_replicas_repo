@@ -167,7 +167,11 @@ const ZoomCarSearchResults = () => {
 				</div>
 			</div>
 
-				<main id="zoomcar-results" className="container mx-auto py-8 px-4">
+				{/* App.tsx already wraps every route in <main id="main-content">;
+				    a second, nested <main> here made duplicate main landmarks,
+				    which breaks screen-reader landmark navigation. A div keeps
+				    the #zoomcar-results anchor target working. */}
+				<div id="zoomcar-results" className="container mx-auto py-8 px-4">
 				<div className="flex flex-col lg:flex-row gap-6">
 					{/* Filters Sidebar */}
 					<div className="w-full lg:w-1/4 bg-white p-6 rounded-lg shadow-md h-fit">
@@ -365,7 +369,7 @@ const ZoomCarSearchResults = () => {
 							</div>
 						</div>
 					</div>
-					</main>
+					</div>
 				{/* Footer */}
 			<footer className="bg-gray-800 text-white py-8 px-4 mt-12">
 				<div className="container mx-auto">

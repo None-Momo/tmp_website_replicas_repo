@@ -82,9 +82,31 @@ export const ZoomcarDetail: React.FC = () => {
 					</div>
 				</header>
 				<h1 className="sr-only">Car rental details</h1>
-				{/* <h1>Selected Car</h1> */}
-				{/* Render other car details here */}
-				<div dangerouslySetInnerHTML={{ __html: carData }} />
+				{/* The injected snippet's own title is an <h3> (scraped markup);
+				    this sr-only h2 keeps the heading outline from skipping a
+				    level (h1 -> h3), so heading-based navigation stays coherent. */}
+				<h2 className="sr-only">Selected vehicle</h2>
+				{/* The injected snippet's "Pay Later" / "Pay Now" CTAs are inert
+				    scraped markup; sanitize() exposes them as named role="button"
+				    tabindex="0" controls, and this delegate wires their activation
+				    (mouse click, Enter/Space, or a screen reader's press — which
+				    dispatches a click) so the booking flow can be completed
+				    without a mouse, mirroring the other replicas' detail pages
+				    whose action buttons navigate to /done. */}
+				<div
+					onClick={(e) => {
+						const target = e.target as HTMLElement;
+						if (target.closest('#res-vehicles-pay-later, #res-vehicles-pay-now')) navigate('/done');
+					}}
+					onKeyDown={(e) => {
+						if (e.key !== 'Enter' && e.key !== ' ') return;
+						const target = e.target as HTMLElement;
+						if (!target.closest('#res-vehicles-pay-later, #res-vehicles-pay-now')) return;
+						e.preventDefault();
+						navigate('/done');
+					}}
+					dangerouslySetInnerHTML={{ __html: carData }}
+				/>
 			</div>
 		) : null}
 	</div>)

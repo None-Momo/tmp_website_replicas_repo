@@ -411,7 +411,10 @@ export default function YelpSearch() {
 
 
       {/* Main Content */}
-	      <main className="grid grid-cols-2 gap-2">
+	      {/* App.tsx already wraps every route in <main id="main-content">; a
+	          second, nested <main> here made duplicate main landmarks, which
+	          breaks screen-reader landmark navigation. */}
+	      <div className="grid grid-cols-2 gap-2">
 
         <div className="flex-1 p-4" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
 
@@ -468,7 +471,7 @@ export default function YelpSearch() {
             ]}
           /> */}
 	        </div>
-		      </main>
+		      </div>
 
 	    </div>
   );
