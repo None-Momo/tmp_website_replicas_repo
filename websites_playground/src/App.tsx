@@ -21,6 +21,9 @@ import { YelpDetails } from './Yelp/yelp_details';
 import { StayScapeDetails } from './StayScape/StayScape_detials';
 import { DwellioDetails } from './dwellio/dwellio_details';
 import { DynamicPage } from './amazon/dynamicPage_index';
+import PracticeLibrary from './practice/practice_index';
+import PracticeSearchResults from './practice/practice_searchresults';
+import { PracticeDetails } from './practice/practice_details';
 
 const pageTitles: Array<[RegExp, string]> = [
   [/^\/riverbuy_details/, 'RiverBuy Product Details'],
@@ -41,6 +44,9 @@ const pageTitles: Array<[RegExp, string]> = [
   [/^\/dwellio_search/, 'Dwellio Search Results'],
   [/^\/dwellio_details/, 'Dwellio Details'],
   [/^\/dwellio/, 'Dwellio'],
+  [/^\/practice_search/, 'Practice Library Search Results'],
+  [/^\/practice_details/, 'Practice Library Book Details'],
+  [/^\/practice/, 'Practice Library'],
   [/^\/done/, 'Task Complete'],
   [/^\/dynamic\//, 'Dynamic Page'],
 ];
@@ -101,6 +107,11 @@ function App() {
         <Route path="/dwellio_details/:slug" element={<DwellioDetails />} />
 
 
+
+        <Route path="/practice" element={<PracticeLibrary />} />
+        <Route path="/practice_search" element={<PracticeSearchResults />} />
+        <Route path="/practice_details" element={<Navigate to="/practice" replace />} />
+        <Route path="/practice_details/:slug" element={<PracticeDetails />} />
 
         <Route path="/done" element={<DonePage />} />
 
