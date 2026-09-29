@@ -12,6 +12,8 @@ from fastapi.responses import JSONResponse
 
 from openai import OpenAI
 
+from morph_llm_proxy import create_morph_llm_router
+
 import tiktoken
 
 
@@ -64,6 +66,13 @@ app.add_middleware(
 	allow_methods=["*"],
 	allow_headers=["*"],
 )
+
+# MORPH LLM proxy (see morph_llm_proxy.py). Reuses the same server-side key
+# and base URL as the endpoints below. Mounted twice because nginx strips the
+# public /api prefix: /api/llm/v1/... reaches the backend as /llm/v1/....
+morph_llm_router = create_morph_llm_router(API_KEY, LLM_BASE_URL)
+app.include_router(morph_llm_router, prefix="/llm/v1")
+app.include_router(morph_llm_router, prefix="/api/llm/v1")
 
 BATCH_SIZE = 20
 

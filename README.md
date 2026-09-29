@@ -4,7 +4,7 @@
 
 This project runs a **frontend** (React app) and a **backend** (FastAPI server) that can use an OpenAI-compatible API for LLM recommendations and page generation. You can run everything with **Docker** (one container) or **locally** (two processes).
 
-**The LLM is optional.** The six study websites are static/deterministic and work without an LLM, as does MORPH telemetry. `OPENAI_API_KEY` is only needed if you intentionally enable the LLM features; without it the app runs in LLM-disabled mode and the LLM endpoints return 503. A normal Render deployment for the BLV study can omit `OPENAI_API_KEY` entirely.
+**The LLM is optional.** The six study websites are static/deterministic and work without an LLM, as does MORPH telemetry. `OPENAI_API_KEY` is only needed if you intentionally enable the LLM features; without it the app runs in LLM-disabled mode and the LLM endpoints return 503. The Render deployment for the BLV study **requires** `OPENAI_API_KEY`, because MORPH calls the LLM through the [MORPH LLM proxy](#morph-llm-proxy) on this backend. Without it, the study websites and telemetry still work, but MORPH's LLM calls fail with HTTP 503.
 
 (More details on supported tasks can be found in the paper)(https://arxiv.org/abs/2601.16356)
 
@@ -15,6 +15,7 @@ This project runs a **frontend** (React app) and a **backend** (FastAPI server) 
 - [Ports and URLs](#ports-and-urls)
 - [Available frontend routes](#available-frontend-routes)
 - [Configuration reference](#configuration-reference)
+- [MORPH LLM proxy](#morph-llm-proxy)
 
 ---
 
@@ -196,7 +197,7 @@ Routes defined in the React Router (`websites_playground/src/App.tsx`):
 
 | Variable          | Required | Default                     | Description                                                        |
 | ----------------- | -------- | --------------------------- | ------------------------------------------------------------------ |
-| `OPENAI_API_KEY`  | No       | —                           | Enables LLM features; without it, LLM endpoints return 503.        |
+| `OPENAI_API_KEY`  | For MORPH | —                          | Enables LLM features and the MORPH proxy; without it, LLM endpoints return 503. |
 | `OPENAI_BASE_URL` | No       | `https://api.openai.com/v1` | API base URL for the backend client.                               |
 | `OPENAI_MODEL`    | No       | `gpt-4o-mini`               | Chat model used by the backend.                                    |
 
@@ -211,6 +212,30 @@ Routes defined in the React Router (`websites_playground/src/App.tsx`):
 | `model`           | Optional; chat model (defaults to `gpt-4o-mini`).        |
 
 The legacy `deepseek_api` / `deepseek_base_url` keys are **deprecated** but still read as fallbacks when the `openai_*` keys are absent.
+
+---
+
+## MORPH LLM proxy
+
+The MORPH extension calls the LLM through this backend, so participants never enter an API key or choose a model. The proxy is OpenAI-compatible: point an OpenAI client at `https://<deployment>/api/llm/v1` with any placeholder API key.
+
+| Route                                | Purpose                                                                 |
+| ------------------------------------ | ----------------------------------------------------------------------- |
+| `POST /api/llm/v1/chat/completions`  | Chat Completions, streaming (`"stream": true`) and non-streaming.       |
+| `GET /api/llm/v1/health`             | Reports whether the proxy is configured (HTTP 503 when no key is set).  |
+
+- The OpenAI key is the server-side `OPENAI_API_KEY` (or `openai_api` in `config.ini`). The key the client sends is ignored, and the server key never appears in a response.
+- The model is pinned to `gpt-6-luna` with `reasoning_effort: "none"`. Any `model`, `reasoning_effort` or `reasoning` sent by the client is overwritten. `OPENAI_MODEL` does not affect the proxy.
+- Responses are relayed unchanged, including the `usage` object. For streams, `stream_options.include_usage` defaults to `true` so usage arrives in the final chunk.
+- Upstream failures map to OpenAI-style errors: no server key → 503 `missing_api_key`; rejected key → 502 `upstream_auth_error`; model unavailable → 503 `model_unavailable`; OpenAI rate limit → 429; OpenAI 5xx or network failure → 502 (504 on connect timeout).
+
+Optional environment variables:
+
+| Variable                        | Default    | Description                                             |
+| ------------------------------- | ---------- | ------------------------------------------------------- |
+| `MORPH_LLM_MAX_OUTPUT_TOKENS`   | `4096`     | Cap on `max_completion_tokens` per request.             |
+| `MORPH_LLM_RATE_LIMIT_PER_MIN`  | `120`      | Requests per minute per client IP (429 when exceeded).  |
+| `MORPH_LLM_MAX_REQUEST_BYTES`   | `10485760` | Largest accepted request body.                          |
 
 ---
 
