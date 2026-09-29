@@ -16,6 +16,7 @@ This project runs a **frontend** (React app) and a **backend** (FastAPI server) 
 - [Available frontend routes](#available-frontend-routes)
 - [Configuration reference](#configuration-reference)
 - [MORPH LLM proxy](#morph-llm-proxy)
+- [MORPH telemetry storage](#morph-telemetry-storage)
 
 ---
 
@@ -38,7 +39,7 @@ docker build -t website-playground .
 
 ### Run the container
 
-No environment variables are required — without a key the app runs in LLM-disabled mode (study websites and telemetry fully functional):
+No environment variables are required to start it. Without a key the app runs in LLM-disabled mode, and without the [Firebase settings](#render-configuration) telemetry uploads return 503; the study websites work either way:
 
 ```bash
 docker run -p 3000:3000 -p 8089:8089 website-playground
@@ -200,6 +201,8 @@ Routes defined in the React Router (`websites_playground/src/App.tsx`):
 | `OPENAI_API_KEY`  | For MORPH | —                          | Enables LLM features and the MORPH proxy; without it, LLM endpoints return 503. |
 | `OPENAI_BASE_URL` | No       | `https://api.openai.com/v1` | API base URL for the backend client.                               |
 | `OPENAI_MODEL`    | No       | `gpt-4o-mini`               | Chat model used by the backend.                                    |
+| `FIREBASE_STORAGE_BUCKET` | For telemetry | — | Firebase Storage bucket for MORPH sessions; see [MORPH telemetry storage](#morph-telemetry-storage). |
+| `GOOGLE_APPLICATION_CREDENTIALS` | For telemetry | — | Path to the Firebase service-account key (on Render, a Secret File under `/etc/secrets/`). |
 
 `DEEPSEEK_API_KEY` and `DEEPSEEK_BASE_URL` are **deprecated** aliases that are still accepted so old deployments keep starting; prefer the `OPENAI_*` names.
 
@@ -236,6 +239,67 @@ Optional environment variables:
 | `MORPH_LLM_MAX_OUTPUT_TOKENS`   | `4096`     | Cap on `max_completion_tokens` per request.             |
 | `MORPH_LLM_RATE_LIMIT_PER_MIN`  | `120`      | Requests per minute per client IP (429 when exceeded).  |
 | `MORPH_LLM_MAX_REQUEST_BYTES`   | `10485760` | Largest accepted request body.                          |
+
+---
+
+## MORPH telemetry storage
+
+MORPH uploads study sessions to this backend (today the extension's Download action triggers the upload), and the backend stores them in Firebase:
+
+```
+MORPH extension
+  → POST /api/telemetry/sessions   (this backend on Render)
+      → Cloud Storage   raw_sessions/{participantId}/{taskId}/{sessionId}.json   complete raw session JSON
+      → Firestore       participants/{participantId}/taskRuns/{taskId}           participant/task/session index
+```
+
+Sessions used to be written only to `website_playground_server/collected_data/` on Render's local disk. The backend still writes that copy, but only as a temporary debug fallback: Render's local disk does not survive a redeploy, so Firebase is the source of truth. Only this backend talks to Firebase, through the Admin SDK; no Firebase credential is in the repository, the frontend or the extension.
+
+**Cloud Storage** holds the complete session object as MORPH sent it (`events`, `groupedByStepId`, the oversight metrics, `modelUsage`, `study` and any other field), serialized as UTF-8 `application/json`. Nothing is removed, summarized or truncated.
+
+**Firestore** holds a small index and never the events. Each `participants/{participantId}/taskRuns/{taskId}` document has `participantId`, `taskId`, `sessionId`, the `session.study` fields `participantGroup`, `assistiveTech`, `taskPrompt`, `targetUrl`, `oversightCondition`, `startedAt`, `endedAt` and `runStatus` (null when absent), `eventCount`, `uploadedAt` (client clock), `serverReceivedAt` (server clock, epoch ms) and `storagePath` (the Cloud Storage object). If a participant runs a task more than once, the top-level fields describe the most recently uploaded session, and the `sessions` map keeps one entry per sessionId (`startedAt`, `endedAt`, `runStatus`, `eventCount`, `serverReceivedAt`, `storagePath`), so every attempt stays in the index. The parent `participants/{participantId}` documents are not written; to list every task run, query the `taskRuns` collection group.
+
+Upload rules:
+
+- A session is identified by the request's top-level `participantId`, its `study.taskId` and its `sessionId`. Each ID must be 1–128 letters, digits, `.`, `_` or `-`, starting with a letter or digit, because it becomes a path segment.
+- A session without `sessionId` or `study.taskId` is rejected rather than filed under an unknown task. A session whose `study.participantId` is set and differs from the request's `participantId` is rejected rather than rewritten.
+- Sessions in one upload are handled independently: valid sessions are stored even when others in the same upload are rejected.
+- Uploads are idempotent. The paths are deterministic, so re-uploading a session overwrites the same object and merges into the same document, and retrying after a failure is safe. The latest upload of a session replaces the stored copy.
+
+Responses keep the shape the extension already reads. A session only counts as stored once both Firebase writes succeed; the local debug copy never makes `ok` true.
+
+| HTTP | Body | Meaning |
+| ---- | ---- | ------- |
+| 200  | `{"ok": true, "storedCount": n, "stored": [...]}` | Every session is in Cloud Storage and Firestore. |
+| 400  | `{"ok": false, "storedCount": k, "error": "...", "errors": [...]}` | The request, or some of its sessions, is invalid; `k` other sessions were stored. |
+| 502  | Same as 400 | A Cloud Storage or Firestore write failed; retry. |
+| 503  | Same as 400 | Firebase is not configured on the server. |
+
+`GET /api/telemetry/health` returns `{"ok": true, "storage": "firebase", "firebaseConfigured": true, "dataDir": "..."}`. `firebaseConfigured` only checks that `FIREBASE_STORAGE_BUCKET` is set and that `GOOGLE_APPLICATION_CREDENTIALS` names an existing file; it calls no Firebase API and returns no setting values.
+
+Upload bodies pass through the container's nginx, which accepts up to 32 MB (`client_max_body_size` in `nginx.conf`). nginx's 1 MB default had rejected long sessions with HTTP 413.
+
+### Render configuration
+
+| Setting | Value |
+| ------- | ----- |
+| Secret File `firebase-service-account.json` | The Firebase service-account key (JSON). Render exposes it at `/etc/secrets/firebase-service-account.json`. |
+| `GOOGLE_APPLICATION_CREDENTIALS` | `/etc/secrets/firebase-service-account.json` |
+| `FIREBASE_STORAGE_BUCKET` | `<configured Firebase bucket>`: the bucket name, without `gs://` |
+
+Without these settings the server still starts, the study websites and the LLM proxy work, and telemetry uploads return 503. Never commit the key; `.gitignore` and `.dockerignore` exclude the usual key file names.
+
+The Admin SDK bypasses Firebase Security Rules, so keep the Firestore and Storage rules denying all client access (`allow read, write: if false;`). Participant data is then unreachable through the public Firebase APIs, and uploads keep working.
+
+### Backend tests
+
+The tests replace Firebase with in-memory fakes, so they need no credentials or network access:
+
+```bash
+cd website_playground_server
+pip install -r requirements.txt
+python -m unittest -v
+```
 
 ---
 

@@ -1,5 +1,10 @@
 # Don't bake API keys into the image; config.ini is generated at run from env
 website_playground_server/config.ini
+# Firebase service-account keys are mounted at run time (Render Secret File)
+**/*firebase-adminsdk*.json
+**/firebase-service-account*.json
+# Local MORPH telemetry debug copies (participant data)
+website_playground_server/collected_data
 # Dependencies and caches (reinstalled in container)
 websites_playground/node_modules
 websites_playground/build

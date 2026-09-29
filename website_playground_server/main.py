@@ -6,12 +6,14 @@ import uvicorn
 import configparser
 
 from fastapi import FastAPI
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from openai import OpenAI
 
+import firebase_store
 from morph_llm_proxy import create_morph_llm_router
 
 import tiktoken
@@ -344,13 +346,12 @@ async def pick_best_file(request: Request):
 
 
 # ── MORPH telemetry ingestion ────────────────────────────────────────────────
-# The MORPH extension uploads study session logs here so interaction data is
-# stored server-side instead of only as a local browser download. Sessions are
-# written as JSON files under TELEMETRY_DATA_DIR (default: ./collected_data),
-# grouped by participant. To move this to real cloud storage later, replace
-# store_session_payload() with an S3/GCS upload — the HTTP contract with the
-# extension stays the same. No credentials are read here; cloud credentials
-# must come from environment variables when that swap happens.
+# The MORPH extension uploads study session logs here. Firebase is the
+# persistent store (see firebase_store.py): the complete session JSON goes to
+# Cloud Storage and a metadata index to Firestore, and a session only counts
+# as stored once both writes succeed. Each session is also still written to
+# TELEMETRY_DATA_DIR (default: ./collected_data) as before, but only as a
+# temporary debug copy: Render's local disk does not survive a redeploy.
 
 TELEMETRY_DATA_DIR = os.environ.get(
 	"TELEMETRY_DATA_DIR",
@@ -359,6 +360,10 @@ TELEMETRY_DATA_DIR = os.environ.get(
 
 _SAFE_SEGMENT = re.compile(r"[^A-Za-z0-9._-]")
 
+_firebase_missing = firebase_store.missing_settings()
+if _firebase_missing:
+	print(f"Firebase telemetry storage is not configured ({'; '.join(_firebase_missing)}): telemetry uploads will return 503.")
+
 
 def _safe_path_segment(value: str, fallback: str) -> str:
 	cleaned = _SAFE_SEGMENT.sub("_", (value or "").strip())[:80]
@@ -366,10 +371,10 @@ def _safe_path_segment(value: str, fallback: str) -> str:
 
 
 def store_session_payload(participant_id: str, session_id: str, payload: dict) -> str:
-	"""Persist one session log; returns the storage location.
+	"""Write the local debug copy of one session; returns its path.
 
-	Local-disk implementation. Swap the body for a cloud SDK call (e.g.
-	boto3 put_object) to store in the cloud without touching the extension.
+	Firebase (firebase_store.save_task_run) is the persistent store; this
+	copy on Render's ephemeral disk is only for debugging.
 	"""
 	participant_dir = os.path.join(TELEMETRY_DATA_DIR, _safe_path_segment(participant_id, "unknown_participant"))
 	os.makedirs(participant_dir, exist_ok=True)
@@ -380,39 +385,125 @@ def store_session_payload(participant_id: str, session_id: str, payload: dict) -
 	return path
 
 
+def _store_session(index: int, session, participant_id: str, uploaded_at, received_at: int, firebase_error: str | None) -> tuple[int, dict]:
+	"""Store one uploaded session; returns (HTTP status, result entry).
+
+	Does blocking disk and network I/O, so the endpoint runs it in a worker
+	thread and other requests (such as MORPH LLM streams) keep moving.
+	"""
+	if not isinstance(session, dict):
+		return 400, {"index": index, "sessionId": None, "error": "Session is not a JSON object"}
+	raw_session_id = session.get("sessionId")
+	result = {"index": index, "sessionId": raw_session_id if isinstance(raw_session_id, str) else None}
+
+	# The debug copy is written as before, even for sessions Firebase rejects below.
+	local_session_id = str(raw_session_id or f"session_{int(time.time() * 1000)}")
+	envelope = {"participantId": participant_id, "receivedAt": received_at, "session": session}
+	try:
+		path = store_session_payload(participant_id, local_session_id, envelope)
+		print(f"[telemetry] debug copy of session {local_session_id} for {participant_id} -> {path}")
+	except Exception as e:
+		print(f"[telemetry] debug copy of session {local_session_id} for {participant_id} failed: {e!r}")
+
+	try:
+		task_id, session_id = firebase_store.task_run_ids(participant_id, session)
+	except firebase_store.TelemetryValidationError as e:
+		return 400, {**result, "error": str(e)}
+	if firebase_error:
+		return 503, {**result, "error": firebase_error}
+	try:
+		paths = firebase_store.save_task_run(
+			participant_id, task_id, session_id, session, uploaded_at=uploaded_at, received_at=received_at
+		)
+	except firebase_store.FirebaseWriteError as e:
+		print(f"[telemetry] Firebase write failed for {participant_id}/{task_id}/{session_id}: {e.__cause__!r}")
+		return 502, {**result, "error": str(e)}
+	print(f"[telemetry] stored session {session_id} for {participant_id}/{task_id} -> {paths['storagePath']}")
+	return 200, {"sessionId": session_id, "taskId": task_id, **paths}
+
+
+def _telemetry_failure(status: int, message: str) -> JSONResponse:
+	print(f"[telemetry] upload rejected (HTTP {status}): {message}")
+	return JSONResponse(status_code=status, content={"ok": False, "storedCount": 0, "error": message})
+
+
+def _failure_summary(stored_count: int, total: int, errors: list[dict]) -> str:
+	"""One sentence per distinct problem, listing the sessions it affected."""
+	affected: dict[str, list[str]] = {}
+	for error in errors:
+		label = f"sessions[{error['index']}]" + (f" {error['sessionId']}" if error["sessionId"] else "")
+		affected.setdefault(error["error"], []).append(label)
+	details = " ".join(f"{', '.join(labels)}: {message}." for message, labels in affected.items())
+	return f"Stored {stored_count} of {total} session{'' if total == 1 else 's'} in Firebase. {details}"
+
+
 @app.get("/telemetry/health")
 async def telemetry_health():
-	return {"ok": True, "storage": "local-disk", "dataDir": TELEMETRY_DATA_DIR}
+	# A configuration check only: it calls no Firebase API and returns no setting values.
+	return {
+		"ok": True,
+		"storage": "firebase",
+		"firebaseConfigured": not firebase_store.missing_settings(),
+		"dataDir": TELEMETRY_DATA_DIR,
+	}
 
 
 @app.post("/telemetry/sessions")
 async def upload_telemetry_sessions(request: Request):
 	"""
 	Accepts a batch of MORPH session logs:
-	{ "participantId": "P67", "uploadedAt": 123, "sessions": [ { "sessionId": "...", ... }, ... ] }
-	Each session is stored as one JSON file; re-uploads overwrite (idempotent).
+	{ "participantId": "P67", "uploadedAt": 123, "sessions": [ { "sessionId": "...", "study": { "taskId": "...", ... }, ... }, ... ] }
+	Each session goes to Firebase under participantId + study.taskId + sessionId;
+	re-uploads rewrite the same Storage object and Firestore document (idempotent).
+	Returns {"ok": true, "storedCount": n} only when every session reached
+	Firebase; otherwise HTTP 400/502/503 with ok false, the number stored and an error.
 	"""
-	data = await request.json()
-	participant_id = str(data.get("participantId") or "unknown_participant")
+	try:
+		data = await request.json()
+	except ValueError:
+		return _telemetry_failure(400, "Request body must be valid JSON.")
+	if not isinstance(data, dict):
+		return _telemetry_failure(400, "Request body must be a JSON object.")
+	try:
+		participant_id = firebase_store.require_id(data.get("participantId"), "participantId")
+	except firebase_store.TelemetryValidationError as e:
+		return _telemetry_failure(400, f"{e}.")
 	sessions = data.get("sessions")
 	if not isinstance(sessions, list) or len(sessions) == 0:
-		return {"ok": False, "error": "No sessions provided."}
+		return _telemetry_failure(400, "No sessions provided.")
 
-	stored = []
-	for session in sessions:
-		if not isinstance(session, dict):
-			continue
-		session_id = str(session.get("sessionId") or f"session_{int(time.time() * 1000)}")
-		envelope = {
-			"participantId": participant_id,
-			"receivedAt": int(time.time() * 1000),
-			"session": session,
-		}
-		path = store_session_payload(participant_id, session_id, envelope)
-		stored.append({"sessionId": session_id, "storedAt": path})
-		print(f"[telemetry] stored session {session_id} for {participant_id} -> {path}")
+	try:
+		await run_in_threadpool(firebase_store.connect)
+		firebase_error = None
+	except firebase_store.FirebaseUnavailableError as e:
+		firebase_error = str(e)
 
-	return {"ok": True, "storedCount": len(stored), "stored": stored}
+	received_at = int(time.time() * 1000)
+	status, stored, errors = 200, [], []
+	for index, session in enumerate(sessions):
+		code, result = await run_in_threadpool(
+			_store_session, index, session, participant_id, data.get("uploadedAt"), received_at, firebase_error
+		)
+		status = max(status, code)  # 503 (not configured) > 502 (write failed) > 400 (invalid session)
+		if code == 200:
+			stored.append(result)
+		else:
+			errors.append(result)
+
+	if not errors:
+		return {"ok": True, "storedCount": len(stored), "stored": stored}
+	for error in errors:
+		print(f"[telemetry] sessions[{error['index']}] from {participant_id} not stored in Firebase: {error['error']}")
+	return JSONResponse(
+		status_code=status,
+		content={
+			"ok": False,
+			"storedCount": len(stored),
+			"error": _failure_summary(len(stored), len(sessions), errors),
+			"stored": stored,
+			"errors": errors,
+		},
+	)
 
 
 if __name__ == "__main__":

@@ -145,6 +145,10 @@ vite.config.ts.timestamp-*
 # MORPH telemetry uploads (participant data — never commit)
 website_playground_server/collected_data/
 
+# Firebase Admin service-account keys (Render mounts the key as a Secret File)
+*firebase-adminsdk*.json
+firebase-service-account*.json
+
 # macOS Finder metadata
 .DS_Store
 
