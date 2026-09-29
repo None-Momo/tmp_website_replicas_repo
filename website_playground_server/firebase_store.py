@@ -65,20 +65,55 @@ def require_id(value, field: str) -> str:
 	return value
 
 
-def task_run_ids(participant_id: str, session: dict) -> tuple[str, str]:
-	"""Return (taskId, sessionId) for one session in an upload from participant_id.
+# The study fields MORPH fills in for every session, technical stubs included:
+# they record when a session ran, not which task run it belongs to.
+_LIFECYCLE_FIELDS = ("startedAt", "endedAt", "runStatus")
 
-	Never guesses: a session without study.taskId is not filed under an unknown
-	task, and a study.participantId that disagrees with the request is an
-	error, not something to overwrite.
+
+def _is_empty(value) -> bool:
+	if isinstance(value, str):
+		return not value.strip()
+	if isinstance(value, (list, dict)):
+		return not value
+	return value is None
+
+
+def is_technical_stub(session: dict) -> bool:
+	"""True for a session MORPH opened and closed without a study task.
+
+	Such a session has no study block, or one whose fields are all empty apart
+	from startedAt, endedAt and runStatus. Any other non-empty study value (a
+	participantId, a taskId, a prompt, a condition, or a field this code does
+	not know) makes the session formal, and task_run_ids checks it in full.
+	"""
+	study = session.get("study")
+	if study is None:
+		return True
+	if not isinstance(study, dict):
+		return False
+	return all(_is_empty(value) for key, value in study.items() if key not in _LIFECYCLE_FIELDS)
+
+
+def task_run_ids(participant_id: str, session: dict) -> tuple[str, str] | None:
+	"""Return (taskId, sessionId) for one session in an upload from participant_id,
+	or None for a technical stub, which is not filed at all.
+
+	Never guesses: a formal session without study.taskId is not filed under an
+	unknown task, one without study.participantId is not filed under the
+	request's participant, and a study.participantId that disagrees with the
+	request is an error, not something to overwrite.
 	"""
 	session_id = require_id(session.get("sessionId"), "sessionId")
+	if is_technical_stub(session):
+		return None
 	study = session.get("study") if isinstance(session.get("study"), dict) else {}
 	task_id = require_id(study.get("taskId"), "study.taskId")
 	claimed = study.get("participantId")
 	if isinstance(claimed, str):
 		claimed = claimed.strip()
-	if claimed not in (None, "") and claimed != participant_id:
+	if claimed in (None, ""):
+		raise TelemetryValidationError("Missing study.participantId")
+	if claimed != participant_id:
 		raise TelemetryValidationError(
 			f"study.participantId {claimed!r} does not match the request participantId {participant_id!r}"
 		)

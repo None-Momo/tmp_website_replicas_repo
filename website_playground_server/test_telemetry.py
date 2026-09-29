@@ -118,6 +118,30 @@ def make_session(session_id="oversight_abc", task_id="grumble_01", study_partici
 	}
 
 
+def make_stub(session_id="oversight_stub"):
+	"""A technical stub as MORPH exports it: one event, and only lifecycle study fields set."""
+	return {
+		"sessionId": session_id,
+		"exportedAt": 1790000005000,
+		"events": [{"sessionId": session_id, "timestamp": 1790000000100, "eventType": "session_started", "source": "system", "payload": {}}],
+		"groupedByStepId": {},
+		"oversightRhythmMetrics": {},
+		"oversightEscalationMetrics": {},
+		"study": {
+			"participantId": "",
+			"participantGroup": "",
+			"assistiveTech": "",
+			"taskId": "",
+			"taskPrompt": "",
+			"targetUrl": "",
+			"oversightCondition": "",
+			"startedAt": 1790000000000,
+			"endedAt": 1790000000000,
+			"runStatus": "cancelled",
+		},
+	}
+
+
 class TelemetryTestCase(unittest.TestCase):
 	"""The real endpoint, with fake Firebase clients and a temporary debug-copy directory."""
 
@@ -278,16 +302,135 @@ class UploadTests(TelemetryTestCase):
 		self.assertEqual(doc["sessions"]["oversight_first"]["runStatus"], "cancelled")
 
 	def test_batch_stores_valid_sessions_and_reports_the_rest(self):
-		# MORPH exports also hold 1-event sessions with an empty study block.
-		stub = make_session("oversight_stub", task_id="", study_participant="")
-		response = self.upload(make_session(), stub)
+		no_task = make_session("oversight_no_task", task_id="")
+		response = self.upload(make_session(), make_stub(), no_task)
 
 		self.assertEqual(response.status_code, 400)
 		body = response.json()
 		self.assertEqual((body["ok"], body["storedCount"]), (False, 1))
-		self.assertEqual(body["error"], "Stored 1 of 2 sessions in Firebase. sessions[1] oversight_stub: Missing study.taskId.")
-		self.assertEqual(body["errors"], [{"index": 1, "sessionId": "oversight_stub", "error": "Missing study.taskId"}])
+		self.assertEqual(
+			body["error"],
+			"Stored 1 of 2 sessions in Firebase and skipped 1 technical stub. sessions[2] oversight_no_task: Missing study.taskId.",
+		)
+		self.assertEqual(body["errors"], [{"index": 2, "sessionId": "oversight_no_task", "error": "Missing study.taskId"}])
+		self.assertEqual([entry["index"] for entry in body["skipped"]], [1])
 		self.assertEqual(list(self.bucket.objects), [RAW_PATH])
+
+	def test_empty_study_stub_is_skipped(self):
+		no_block = make_stub()
+		del no_block["study"]
+		null_block = make_stub()
+		null_block["study"] = None
+		blank_values = make_stub()
+		blank_values["study"] = {"participantId": "  ", "taskId": None, "assistiveTech": [], "runStatus": "unknown"}
+		for label, stub in (("MORPH stub", make_stub()), ("no study block", no_block), ("null study", null_block), ("blank values", blank_values)):
+			with self.subTest(label):
+				response = self.upload(stub)
+
+				self.assertEqual(response.status_code, 200)
+				self.assertEqual(response.json(), {
+					"ok": True,
+					"storedCount": 0,
+					"stored": [],
+					"skipped": [{"index": 0, "sessionId": "oversight_stub", "reason": "Technical stub: empty study metadata", "eventCount": 1}],
+				})
+				self.assertNothingInFirebase()
+				self.assertIn("skipped technical stub session oversight_stub", self.log.getvalue())
+				self.assertTrue(self.debug_copy_exists("P03", "oversight_stub"))  # debug copy kept, as before
+
+	def test_formal_sessions_with_stubs_return_ok_and_count_only_formal_sessions(self):
+		response = self.upload(
+			make_stub("oversight_stub_1"),
+			make_session(),
+			make_stub("oversight_stub_2"),
+			make_session("oversight_def", task_id="flight_01"),
+		)
+
+		self.assertEqual(response.status_code, 200)
+		body = response.json()
+		self.assertEqual((body["ok"], body["storedCount"]), (True, 2))
+		self.assertNotIn("errors", body)
+		self.assertEqual([entry["sessionId"] for entry in body["stored"]], ["oversight_abc", "oversight_def"])
+		self.assertEqual([(entry["index"], entry["sessionId"]) for entry in body["skipped"]], [(0, "oversight_stub_1"), (2, "oversight_stub_2")])
+		self.assertEqual(sorted(self.bucket.objects), ["raw_sessions/P03/flight_01/oversight_def.json", RAW_PATH])
+		self.assertEqual(sorted(self.db.docs), ["participants/P03/taskRuns/flight_01", DOC_PATH])
+
+	def test_participant_without_task_still_fails(self):
+		stub_with_participant = make_stub()
+		stub_with_participant["study"]["participantId"] = "P03"
+		for label, session in (("stub with participantId", stub_with_participant), ("formal session", make_session(task_id=""))):
+			with self.subTest(label):
+				response = self.upload(session)
+
+				self.assertEqual(response.status_code, 400)
+				body = response.json()
+				self.assertEqual((body["ok"], body["storedCount"]), (False, 0))
+				self.assertEqual(body["errors"][0]["error"], "Missing study.taskId")
+				self.assertNotIn("skipped", body)
+				self.assertNothingInFirebase()
+
+	def test_task_without_participant_still_fails(self):
+		stub_with_task = make_stub()
+		stub_with_task["study"]["taskId"] = "grumble_01"
+		no_participant_key = make_session()
+		del no_participant_key["study"]["participantId"]
+		cases = (
+			("stub with taskId", stub_with_task),
+			("empty study.participantId", make_session(study_participant="")),
+			("no study.participantId", no_participant_key),
+		)
+		for label, session in cases:
+			with self.subTest(label):
+				response = self.upload(session)
+
+				self.assertEqual(response.status_code, 400)
+				body = response.json()
+				self.assertEqual((body["ok"], body["storedCount"]), (False, 0))
+				self.assertEqual(body["errors"][0]["error"], "Missing study.participantId")
+				self.assertNotIn("skipped", body)
+				self.assertNothingInFirebase()
+
+	def test_any_other_study_value_makes_a_session_formal(self):
+		for field in ("participantGroup", "assistiveTech", "taskPrompt", "targetUrl", "oversightCondition", "fieldAddedLater"):
+			with self.subTest(field=field):
+				stub = make_stub()
+				stub["study"][field] = "set"
+				response = self.upload(stub)
+
+				self.assertEqual(response.status_code, 400)
+				self.assertEqual(response.json()["errors"][0]["error"], "Missing study.taskId")
+				self.assertNothingInFirebase()
+
+	def test_malformed_study_block_is_not_a_stub(self):
+		for study in ("grumble_01", ["P03", "grumble_01"], 0):
+			with self.subTest(study=study):
+				stub = make_stub()
+				stub["study"] = study
+				response = self.upload(stub)
+
+				self.assertEqual(response.status_code, 400)
+				self.assertEqual(response.json()["errors"][0]["error"], "Missing study.taskId")
+				self.assertNothingInFirebase()
+
+	def test_stub_without_session_id_still_fails(self):
+		stub = make_stub()
+		del stub["sessionId"]
+		response = self.upload(stub)
+
+		self.assertEqual(response.status_code, 400)
+		self.assertEqual(response.json()["errors"], [{"index": 0, "sessionId": None, "error": "Missing sessionId"}])
+
+	def test_firebase_failure_still_fails_with_stubs_in_the_batch(self):
+		self.bucket.error = RuntimeError("storage down")
+		response = self.upload(make_session(), make_stub())
+
+		self.assertEqual(response.status_code, 502)
+		body = response.json()
+		self.assertEqual((body["ok"], body["storedCount"]), (False, 0))
+		self.assertTrue(body["error"].startswith(
+			"Stored 0 of 1 session in Firebase and skipped 1 technical stub. sessions[0] oversight_abc: Cloud Storage upload failed (RuntimeError)"
+		))
+		self.assertEqual([entry["index"] for entry in body["skipped"]], [1])
 
 	def test_storage_failure_is_not_reported_as_success(self):
 		self.bucket.error = RuntimeError("bucket said no to svc@example.iam.gserviceaccount.com")

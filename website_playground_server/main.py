@@ -385,14 +385,16 @@ def store_session_payload(participant_id: str, session_id: str, payload: dict) -
 	return path
 
 
-def _store_session(index: int, session, participant_id: str, uploaded_at, received_at: int, firebase_error: str | None) -> tuple[int, dict]:
-	"""Store one uploaded session; returns (HTTP status, result entry).
+def _store_session(index: int, session, participant_id: str, uploaded_at, received_at: int, firebase_error: str | None) -> tuple[str, int, dict]:
+	"""Store one uploaded session; returns (outcome, HTTP status, result entry).
 
-	Does blocking disk and network I/O, so the endpoint runs it in a worker
-	thread and other requests (such as MORPH LLM streams) keep moving.
+	outcome is "stored", "skipped" (a technical stub, see
+	firebase_store.is_technical_stub) or "error". Does blocking disk and
+	network I/O, so the endpoint runs it in a worker thread and other requests
+	(such as MORPH LLM streams) keep moving.
 	"""
 	if not isinstance(session, dict):
-		return 400, {"index": index, "sessionId": None, "error": "Session is not a JSON object"}
+		return "error", 400, {"index": index, "sessionId": None, "error": "Session is not a JSON object"}
 	raw_session_id = session.get("sessionId")
 	result = {"index": index, "sessionId": raw_session_id if isinstance(raw_session_id, str) else None}
 
@@ -406,20 +408,26 @@ def _store_session(index: int, session, participant_id: str, uploaded_at, receiv
 		print(f"[telemetry] debug copy of session {local_session_id} for {participant_id} failed: {e!r}")
 
 	try:
-		task_id, session_id = firebase_store.task_run_ids(participant_id, session)
+		ids = firebase_store.task_run_ids(participant_id, session)
 	except firebase_store.TelemetryValidationError as e:
-		return 400, {**result, "error": str(e)}
+		return "error", 400, {**result, "error": str(e)}
+	if ids is None:
+		events = session.get("events")
+		event_count = len(events) if isinstance(events, list) else None
+		print(f"[telemetry] skipped technical stub session {result['sessionId']} from {participant_id}: empty study metadata, eventCount={event_count}")
+		return "skipped", 200, {**result, "reason": "Technical stub: empty study metadata", "eventCount": event_count}
+	task_id, session_id = ids
 	if firebase_error:
-		return 503, {**result, "error": firebase_error}
+		return "error", 503, {**result, "error": firebase_error}
 	try:
 		paths = firebase_store.save_task_run(
 			participant_id, task_id, session_id, session, uploaded_at=uploaded_at, received_at=received_at
 		)
 	except firebase_store.FirebaseWriteError as e:
 		print(f"[telemetry] Firebase write failed for {participant_id}/{task_id}/{session_id}: {e.__cause__!r}")
-		return 502, {**result, "error": str(e)}
+		return "error", 502, {**result, "error": str(e)}
 	print(f"[telemetry] stored session {session_id} for {participant_id}/{task_id} -> {paths['storagePath']}")
-	return 200, {"sessionId": session_id, "taskId": task_id, **paths}
+	return "stored", 200, {"sessionId": session_id, "taskId": task_id, **paths}
 
 
 def _telemetry_failure(status: int, message: str) -> JSONResponse:
@@ -427,14 +435,18 @@ def _telemetry_failure(status: int, message: str) -> JSONResponse:
 	return JSONResponse(status_code=status, content={"ok": False, "storedCount": 0, "error": message})
 
 
-def _failure_summary(stored_count: int, total: int, errors: list[dict]) -> str:
+def _failure_summary(stored_count: int, skipped_count: int, total: int, errors: list[dict]) -> str:
 	"""One sentence per distinct problem, listing the sessions it affected."""
 	affected: dict[str, list[str]] = {}
 	for error in errors:
 		label = f"sessions[{error['index']}]" + (f" {error['sessionId']}" if error["sessionId"] else "")
 		affected.setdefault(error["error"], []).append(label)
 	details = " ".join(f"{', '.join(labels)}: {message}." for message, labels in affected.items())
-	return f"Stored {stored_count} of {total} session{'' if total == 1 else 's'} in Firebase. {details}"
+	formal = total - skipped_count
+	summary = f"Stored {stored_count} of {formal} session{'' if formal == 1 else 's'} in Firebase"
+	if skipped_count:
+		summary += f" and skipped {skipped_count} technical stub{'' if skipped_count == 1 else 's'}"
+	return f"{summary}. {details}"
 
 
 @app.get("/telemetry/health")
@@ -455,7 +467,9 @@ async def upload_telemetry_sessions(request: Request):
 	{ "participantId": "P67", "uploadedAt": 123, "sessions": [ { "sessionId": "...", "study": { "taskId": "...", ... }, ... }, ... ] }
 	Each session goes to Firebase under participantId + study.taskId + sessionId;
 	re-uploads rewrite the same Storage object and Firestore document (idempotent).
-	Returns {"ok": true, "storedCount": n} only when every session reached
+	Technical stubs (sessions with empty study metadata) are not stored; they
+	are listed under "skipped" and do not fail the upload.
+	Returns {"ok": true, "storedCount": n} only when every other session reached
 	Firebase; otherwise HTTP 400/502/503 with ok false, the number stored and an error.
 	"""
 	try:
@@ -479,31 +493,34 @@ async def upload_telemetry_sessions(request: Request):
 		firebase_error = str(e)
 
 	received_at = int(time.time() * 1000)
-	status, stored, errors = 200, [], []
+	status, stored, skipped, errors = 200, [], [], []
 	for index, session in enumerate(sessions):
-		code, result = await run_in_threadpool(
+		outcome, code, result = await run_in_threadpool(
 			_store_session, index, session, participant_id, data.get("uploadedAt"), received_at, firebase_error
 		)
 		status = max(status, code)  # 503 (not configured) > 502 (write failed) > 400 (invalid session)
-		if code == 200:
+		if outcome == "stored":
 			stored.append(result)
+		elif outcome == "skipped":
+			skipped.append(result)
 		else:
 			errors.append(result)
 
 	if not errors:
-		return {"ok": True, "storedCount": len(stored), "stored": stored}
-	for error in errors:
-		print(f"[telemetry] sessions[{error['index']}] from {participant_id} not stored in Firebase: {error['error']}")
-	return JSONResponse(
-		status_code=status,
-		content={
+		body = {"ok": True, "storedCount": len(stored), "stored": stored}
+	else:
+		for error in errors:
+			print(f"[telemetry] sessions[{error['index']}] from {participant_id} not stored in Firebase: {error['error']}")
+		body = {
 			"ok": False,
 			"storedCount": len(stored),
-			"error": _failure_summary(len(stored), len(sessions), errors),
+			"error": _failure_summary(len(stored), len(skipped), len(sessions), errors),
 			"stored": stored,
 			"errors": errors,
-		},
-	)
+		}
+	if skipped:
+		body["skipped"] = skipped
+	return JSONResponse(status_code=status, content=body)
 
 
 if __name__ == "__main__":

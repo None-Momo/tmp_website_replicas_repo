@@ -262,15 +262,16 @@ Sessions used to be written only to `website_playground_server/collected_data/` 
 Upload rules:
 
 - A session is identified by the request's top-level `participantId`, its `study.taskId` and its `sessionId`. Each ID must be 1–128 letters, digits, `.`, `_` or `-`, starting with a letter or digit, because it becomes a path segment.
-- A session without `sessionId` or `study.taskId` is rejected rather than filed under an unknown task. A session whose `study.participantId` is set and differs from the request's `participantId` is rejected rather than rewritten.
+- A formal session needs a `sessionId`, a `study.taskId` and a `study.participantId` equal to the request's `participantId`. A session missing any of them is rejected rather than filed under an unknown task or participant, and a different `study.participantId` is rejected rather than rewritten.
+- Technical stubs are skipped, not rejected. MORPH exports also contain sessions that were opened and closed without a study task: they have no `study` block, or every `study` field is empty apart from `startedAt`, `endedAt` and `runStatus`. Such a session is not written to Firebase and does not fail the upload; it is logged and listed in the response's `skipped` array. Any other non-empty `study` value makes the session formal, with all the checks above.
 - Sessions in one upload are handled independently: valid sessions are stored even when others in the same upload are rejected.
 - Uploads are idempotent. The paths are deterministic, so re-uploading a session overwrites the same object and merges into the same document, and retrying after a failure is safe. The latest upload of a session replaces the stored copy.
 
-Responses keep the shape the extension already reads. A session only counts as stored once both Firebase writes succeed; the local debug copy never makes `ok` true.
+Responses keep the shape the extension already reads. A session only counts as stored once both Firebase writes succeed; the local debug copy never makes `ok` true, and `storedCount` never includes skipped stubs.
 
 | HTTP | Body | Meaning |
 | ---- | ---- | ------- |
-| 200  | `{"ok": true, "storedCount": n, "stored": [...]}` | Every session is in Cloud Storage and Firestore. |
+| 200  | `{"ok": true, "storedCount": n, "stored": [...]}`, plus `"skipped": [...]` when stubs were skipped | Every formal session is in Cloud Storage and Firestore. |
 | 400  | `{"ok": false, "storedCount": k, "error": "...", "errors": [...]}` | The request, or some of its sessions, is invalid; `k` other sessions were stored. |
 | 502  | Same as 400 | A Cloud Storage or Firestore write failed; retry. |
 | 503  | Same as 400 | Firebase is not configured on the server. |
