@@ -19,8 +19,12 @@ import { ZoomcarDetail } from './zoomcar/zoomcar_detail';
 import { FlightDetails } from './GoogleFlights/flight_detials';
 import { YelpDetails } from './Yelp/yelp_details';
 import { StayScapeDetails } from './StayScape/StayScape_detials';
+import StayScapeSavedSearches, { StayScapeSavedSearchDetails } from './StayScape/StayScape_savedsearches';
+import { StayScapeSavedSearchEdit } from './StayScape/StayScape_savedsearch_edit';
+import { StayScapeSavedSearchReset } from './StayScape/StayScape_savedsearch_reset';
 import { DwellioDetails } from './dwellio/dwellio_details';
 import { DynamicPage } from './amazon/dynamicPage_index';
+import { ItineraryPage, ItineraryResetPage } from './itinerary/itinerary_page';
 import PracticeLibrary from './practice/practice_index';
 import PracticeSearchResults from './practice/practice_searchresults';
 import { PracticeDetails } from './practice/practice_details';
@@ -38,6 +42,10 @@ const pageTitles: Array<[RegExp, string]> = [
   [/^\/zoomcar_search/, 'ZoomCar Search Results'],
   [/^\/zoomcar_details/, 'ZoomCar Details'],
   [/^\/zoomcar/, 'ZoomCar'],
+  [/^\/stayscape_saved\/[^/]+\/edit/, 'StayScape Edit Saved Search'],
+  [/^\/stayscape_saved\/[^/]+/, 'StayScape Saved Search Details'],
+  [/^\/stayscape_saved/, 'StayScape Saved Searches'],
+  [/^\/stayscape_study_reset/, 'StayScape Reset Saved Searches'],
   [/^\/stayscape_search/, 'StayScape Search Results'],
   [/^\/stayscape_details/, 'StayScape Details'],
   [/^\/stayscape/, 'StayScape'],
@@ -47,6 +55,8 @@ const pageTitles: Array<[RegExp, string]> = [
   [/^\/practice_search/, 'Practice Library Search Results'],
   [/^\/practice_details/, 'Practice Library Book Details'],
   [/^\/practice/, 'Practice Library'],
+  [/^\/itinerary_study_reset/, 'Reset Trip Itinerary'],
+  [/^\/itinerary/, 'Trip Itinerary'],
   [/^\/done/, 'Task Complete'],
   [/^\/dynamic\//, 'Dynamic Page'],
 ];
@@ -99,6 +109,11 @@ function App() {
         <Route path="/stayscape_search" element={<StayScapeSearchResults />} />
         <Route path="/stayscape_details" element={<StayScapeDetails />} />
         <Route path="/stayscape_details/:slug" element={<StayScapeDetails />} />
+        <Route path="/stayscape_saved" element={<StayScapeSavedSearches />} />
+        <Route path="/stayscape_saved/:id" element={<StayScapeSavedSearchDetails />} />
+        <Route path="/stayscape_saved/:id/edit" element={<StayScapeSavedSearchEdit />} />
+        {/* Study-staff page; deliberately unlinked. See README, "StayScape saved searches". */}
+        <Route path="/stayscape_study_reset" element={<StayScapeSavedSearchReset />} />
 
 
         <Route path="/dwellio" element={<Dwellio />} />
@@ -112,6 +127,10 @@ function App() {
         <Route path="/practice_search" element={<PracticeSearchResults />} />
         <Route path="/practice_details" element={<Navigate to="/practice" replace />} />
         <Route path="/practice_details/:slug" element={<PracticeDetails />} />
+
+        <Route path="/itinerary" element={<ItineraryPage />} />
+        {/* Study-staff page; deliberately unlinked. See README, "Trip itinerary". */}
+        <Route path="/itinerary_study_reset" element={<ItineraryResetPage />} />
 
         <Route path="/done" element={<DonePage />} />
 

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Search, Calendar, Users } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
+import { checkStayDates, staySearchQuery } from './StayScape_search';
 
 const ScapeStay: React.FC = () => {
 	const [location, setLocation] = useState('');
@@ -11,17 +12,30 @@ const ScapeStay: React.FC = () => {
 
 	const navigate = useNavigate();
 
-	const handleSearch = () => {
-		// alert(`Searching for stays in ${location} from ${checkIn} to ${checkOut} for ${guests} guests`);
+	const [errors, setErrors] = useState<string[]>([]);
+	const [submitCount, setSubmitCount] = useState(0);
+	const errorRef = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		if (submitCount > 0 && errors.length > 0) errorRef.current?.focus();
+	}, [submitCount, errors]);
 
-		// check if any of the required fields are empty
-		if (!location || !checkIn || !checkOut || !guests) {
-			alert('Please fill in all the required fields before searching.');
-			return;
+	// A native form, so Enter in any field searches too. Problems are listed
+	// in an alert on the page (a browser alert() dialog blocked the page and
+	// any automation driving it).
+	const handleSearch = (e: React.FormEvent) => {
+		e.preventDefault();
+		const problems: string[] = [];
+		if (!location.trim()) problems.push('Enter a destination.');
+		const dates = checkStayDates(checkIn, checkOut);
+		if (dates.status === 'none') problems.push('Enter a check-in date.', 'Enter a check-out date.');
+		if (dates.status === 'invalid') {
+			if (dates.checkInError) problems.push(dates.checkInError);
+			if (dates.checkOutError) problems.push(dates.checkOutError);
 		}
-		//add the location, checkIn, checkOut, and guests as query parameters to the URL
-		navigate(`/stayscape_search?location=${encodeURIComponent(location)}&checkIn=${encodeURIComponent(checkIn)}&checkOut=${encodeURIComponent(checkOut)}&guests=${encodeURIComponent(guests)}`);
-
+		setErrors(problems);
+		setSubmitCount((c) => c + 1);
+		if (problems.length > 0) return;
+		navigate(`/stayscape_search?${staySearchQuery({ location: location.trim(), checkIn, checkOut, guests, maxPrice: '', amenities: [] })}`);
 	};
 
 	const featupinkStays = [
@@ -42,18 +56,30 @@ const ScapeStay: React.FC = () => {
 							<a href="#search-stays" className="text-gray-700 hover:text-pink-500">Experiences</a>
 							<a href="#search-stays" className="text-gray-700 hover:text-pink-500">Host</a>
 					</nav>
-					{/* bg-pink-500 + white text is ~3.5:1, below the 4.5:1 AA
-					    minimum; pink-600 clears it (~4.6:1). */}
-					<button type="button" className="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700">Sign in</button>
+					<div className="flex items-center space-x-6">
+						{/* Kept outside the md:flex nav so it stays reachable in narrow
+						    windows, e.g. with a browser side panel open. */}
+						<Link to="/stayscape_saved" className="text-gray-700 hover:text-pink-500">Saved searches</Link>
+						<Link to="/itinerary" className="text-gray-700 hover:text-pink-500">Itinerary</Link>
+						{/* bg-pink-500 + white text is ~3.5:1, below the 4.5:1 AA
+						    minimum; pink-600 clears it (~4.6:1). */}
+						<button type="button" className="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700">Sign in</button>
+					</div>
 				</div>
 			</header>
 
 			{/* Hero Section */}
-				<main id="search-stays" className="flex-grow bg-gradient-to-br from-pink-600 to-fuchsia-300 text-white py-20 px-4 sm:px-6 lg:px-8">
+				<div id="search-stays" className="flex-grow bg-gradient-to-br from-pink-600 to-fuchsia-300 text-white py-20 px-4 sm:px-6 lg:px-8">
 					<div className="max-w-4xl mx-auto text-center">
 						<h2 className="text-4xl md:text-6xl font-bold mb-4">Find your next stay</h2>
 						<p className="text-xl mb-8">Search deals on hotels, homes, and much more...</p>
-						<div className="bg-white rounded-lg shadow-lg p-6 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
+						{errors.length > 0 && (
+							<div ref={errorRef} tabIndex={-1} role="alert" className="bg-white text-red-800 border-2 border-red-600 rounded-lg p-4 mb-4 text-left">
+								<p className="font-semibold">Please fix the following before searching:</p>
+								<ul className="list-disc pl-5">{errors.map((m) => <li key={m}>{m}</li>)}</ul>
+							</div>
+						)}
+						<form onSubmit={handleSearch} noValidate aria-label="Search stays" className="bg-white rounded-lg shadow-lg p-6 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
 							<div className="flex items-center space-x-2 flex-1">
 								<Search className="text-gray-400" aria-hidden="true" />
 								<input
@@ -103,16 +129,15 @@ const ScapeStay: React.FC = () => {
 							</select>
 						</div>
 							<button
-								type="button"
-								onClick={handleSearch}
+								type="submit"
 							className="bg-pink-600 text-white px-6 py-2 rounded-lg hover:bg-pink-700 flex items-center space-x-2"
 						>
 								<Search aria-hidden="true" />
 							<span>Search</span>
 						</button>
-					</div>
+					</form>
 				</div>
-				</main>
+				</div>
 
 
 			{/* Footer */}

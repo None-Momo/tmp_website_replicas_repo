@@ -1,7 +1,7 @@
 import React from "react";
 import { useState, useEffect } from "react";
-import { Flight, flightSlug } from './flightAsset';
-import { useLocation, useNavigate, useNavigation } from 'react-router-dom';
+import { Flight, flightDates, flightSlug, formatFlightDate } from './flightAsset';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useMemo } from "react";
 import { pickBestLocalFile } from "../utils/pickbestfileDeepseek";
 import { parseFlights } from "./htmlSnippetFlight";
@@ -36,6 +36,13 @@ export const FlightResults: React.FC = () => {
 
 	const navigate = useNavigate();
 	const location = useLocation();
+	// The search page passes the chosen departure date; the scraped results
+	// stand for flights on that date, so dates are derived from it.
+	const departureDate: string = (location.state as { departureDate?: string } | null)?.departureDate || '';
+	const openDetails = (flight: Flight) => navigate(
+		`/flight_details/${flightSlug(flight)}${departureDate ? `?date=${encodeURIComponent(departureDate)}` : ''}`,
+		{ state: { flight_data: flight, departureDate } }
+	);
 
 
 	useEffect(() => {
@@ -87,7 +94,15 @@ export const FlightResults: React.FC = () => {
 			>
 				&larr; New search
 			</button>
-			<h1 className="text-xl font-semibold mb-4">Flight Results</h1>
+			<div className="flex justify-between items-baseline">
+				<h1 className="text-xl font-semibold mb-1">Flight Results</h1>
+				<Link to="/itinerary" className="text-blue-700 underline hover:text-blue-800">Itinerary</Link>
+			</div>
+			<p className="mb-4 text-gray-700">
+				{flightDates({ arrivalDayOffset: 0 }, departureDate)
+					? `Departing ${formatFlightDate(departureDate)}. Times are local to each airport.`
+					: 'Choose a departure date on the search page to see flight dates.'}
+			</p>
 
 			<FilterBar
 				value={filters}
@@ -117,7 +132,7 @@ export const FlightResults: React.FC = () => {
 						// "View details" button below is the accessible CTA (avoids
 						// nesting interactive elements).
 						<li key={flight.id} className="bg-white rounded-lg shadow p-4 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer"
-							onClick={() => navigate(`/flight_details/${flightSlug(flight)}`, { state: { flight_data: flight } })}
+							onClick={() => openDetails(flight)}
 						>
 							<div className="flex items-center space-x-4 mb-2 md:mb-0">
 								{/* text-blue-600 on bg-blue-100 was ~4.2:1, just under the
@@ -127,6 +142,7 @@ export const FlightResults: React.FC = () => {
 								</div>
 								<div>
 									<div className="font-semibold text-lg">{flight.airline}</div>
+									<div className="text-sm text-gray-700">Flight {flight.flightNumber}</div>
 									<div className="text-sm text-gray-600">{flight.class}</div>
 								</div>
 							</div>
@@ -134,6 +150,15 @@ export const FlightResults: React.FC = () => {
 								<div>
 									<div className="font-semibold">{flight.departure} &rarr; {flight.arrival}</div>
 									<div>{flight.departureTime} - {flight.arrivalTime}</div>
+									{(() => {
+										const dates = flightDates(flight, departureDate);
+										return dates ? (
+											<dl className="mt-1">
+												<div><dt className="inline">Departs: </dt><dd className="inline">{flight.departureTime}, {formatFlightDate(dates.departureDate)}, {flight.departureCity} ({flight.departure})</dd></div>
+												<div><dt className="inline">Arrives: </dt><dd className="inline">{flight.arrivalTime}, {formatFlightDate(dates.arrivalDate)}, {flight.arrivalCity} ({flight.arrival}){flight.arrivalDayOffset > 0 ? ` (+${flight.arrivalDayOffset} day${flight.arrivalDayOffset > 1 ? 's' : ''})` : ''}</dd></div>
+											</dl>
+										) : null;
+									})()}
 								</div>
 								<div>
 									<div>Duration: {flight.duration}</div>
@@ -149,12 +174,12 @@ export const FlightResults: React.FC = () => {
 							    (a coordinate click on the <li> alone could miss). */}
 							<button
 								type="button"
-								aria-label={`Open details for ${flight.airline} flight ${flight.departure} to ${flight.arrival} at $${flight.price}`}
+								aria-label={`Open details for ${flight.airline} flight ${flight.flightNumber}, ${flight.departure} to ${flight.arrival}, departs ${flight.departureTime}, $${flight.price}`}
 								data-testid={`flight-details-${String(flight.airline).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${flight.price}`}
 								className="mt-2 md:mt-0 md:ml-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
 								onClick={(e) => {
 									e.stopPropagation();
-									navigate(`/flight_details/${flightSlug(flight)}`, { state: { flight_data: flight } });
+									openDetails(flight);
 								}}
 							>
 								View details

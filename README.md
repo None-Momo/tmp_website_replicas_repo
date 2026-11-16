@@ -14,6 +14,8 @@ This project runs a **frontend** (React app) and a **backend** (FastAPI server) 
 - [Option 2: Run locally](#option-2-run-locally)
 - [Ports and URLs](#ports-and-urls)
 - [Available frontend routes](#available-frontend-routes)
+- [StayScape saved searches](#stayscape-saved-searches)
+- [StayScape search, flights and trip itinerary](#stayscape-search-flights-and-trip-itinerary)
 - [Configuration reference](#configuration-reference)
 - [MORPH LLM proxy](#morph-llm-proxy)
 - [MORPH telemetry storage](#morph-telemetry-storage)
@@ -187,8 +189,83 @@ Routes defined in the React Router (`websites_playground/src/App.tsx`):
 | `/grumble`   | YelpClone           | yelp replica home      |
 | `/zoomcar`   | ZoomCarRental       | a car rental home page |
 | `/stayscape` | StayScape           | an airbnb replica home |
+| `/stayscape_saved` | StayScapeSavedSearches | StayScape saved searches, see [below](#stayscape-saved-searches) |
+| `/itinerary` | ItineraryPage | trip itinerary shared by the flight site and StayScape, see [below](#stayscape-search-flights-and-trip-itinerary) |
 | `/dwellio`   | Dwellio             | zillow replica home    |
 | `/done`      | DonePage            | completion page        |
+
+## StayScape saved searches
+
+StayScape has a **Saved searches** area for the "modify existing content" study task. The "Saved searches" link in the header of every StayScape page leads to it.
+
+| Path                         | Purpose                                                                                                        |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `/stayscape_saved`           | Lists every saved search with its destination, dates and maximum budget, with View details and Edit links.    |
+| `/stayscape_saved/:id`       | Shows the persisted conditions of one saved search, with an Edit link.                                        |
+| `/stayscape_saved/:id/edit`  | Form with Search name, Destination, Check-in date, Check-out date and Maximum budget; Save changes, Cancel editing. |
+| `/stayscape_study_reset`     | For study staff only and not linked from the site. Restores the initial saved searches when its button is pressed. |
+
+The data lives in the browser's `localStorage` under the key `stayscape.savedSearches` (see `websites_playground/src/StayScape/StayScape_savedsearch_data.ts`). The initial record is written only when that key is absent, so edits survive navigation, page refreshes and remounts, and nothing resets on its own. Saving replaces the record in place and never adds one. There is no server-side copy: each browser profile and each origin (for example `http://localhost:3000` and `http://127.0.0.1:3001`) keeps its own data.
+
+### Initial state
+
+| Field          | Value                              |
+| -------------- | ---------------------------------- |
+| Search name    | Seattle Winter Trip                |
+| Destination    | Seattle                            |
+| Check-in date  | 2026-12-10 (December 10, 2026)     |
+| Check-out date | 2026-12-15 (December 15, 2026)     |
+| Maximum budget | $220 (USD)                         |
+
+### Resetting before a session
+
+Reset in the browser profile the participant will use, on the origin that serves the study site, before every session, so that all three MORPH interaction modes start from identical data.
+
+1. Open `<site>/stayscape_study_reset`, for example `http://localhost:3000/stayscape_study_reset`.
+2. Read the "Current saved searches" section, then press **Reset saved searches to initial state**. The page announces "Saved searches were reset to their initial state." and the current list shows Seattle Winter Trip with a $220 maximum budget.
+3. Optionally open `/stayscape_saved/seattle-winter-trip` to confirm the values, then go to the task's start page.
+
+Opening the reset page changes nothing by itself; only the button writes. The reset replaces the saved-searches key only, so other browser data is left alone, and it can be repeated any number of times without creating duplicates.
+
+Alternative without the page: in the browser's DevTools console run `localStorage.removeItem('stayscape.savedSearches')` and reload. The next saved-search page recreates the initial record. Clearing all site data for the origin also works, but removes the other replica sites' `localStorage` too.
+
+## StayScape search, flights and trip itinerary
+
+These features support the cross-site study task (flight site, then StayScape, then the itinerary). All the replica sites are routes of one React app on one origin, so they share the browser's `localStorage`.
+
+### Flight site
+
+- Each result and details page shows the flight number, departure and arrival cities, departure date and time, and arrival date and time. Times are local to each airport.
+- The departure date is the one chosen on the search page. The scraped results stand for flights on that date; they are not filtered by date.
+- The arrival date is the departure date plus the day offset in the scraped itinerary label ("Leaves ... on Monday, September 22 and arrives ... on Tuesday, September 23"). That offset already reflects overnight flying and time zones, so a flight shown as "+1 day" arrives on the next calendar day.
+- Flight numbers are mock values: the scraped data has none. They are derived deterministically from each flight's airline, airports and times, so they are the same in every session.
+- The scraped Chicago and New York files list every flight twice. The parser keeps the first copy, so the results show 28 and 23 flights.
+- The details URL is `/flight_details/<slug>?date=YYYY-MM-DD`. Older slugs without the flight number still resolve to the first matching flight.
+- The details page has **Add to itinerary**, which records the flight with its dates.
+
+### StayScape search
+
+- Listings come from `websites_playground/src/StayScape/StayScape_listings_data.ts`. Honolulu and New York rows are the scraped Airbnb cards. The nightly price is the scraped total divided by the scraped number of nights. Amenities are mock values, assigned deterministically, except that a listing whose name advertises parking or a pool always has it. Los Angeles (12 listings) and Singapore (8 listings) are hand-written mock listings without photos.
+- A search shows only the requested city. "Los Angeles", "Los Angeles, CA", "Los Angeles (LAX)" and "LA" all match Los Angeles. A place with no listings shows "No matching accommodations found" instead of another city's stays.
+- **Dates:** check-out must be after check-in, on the home page, the results page and the details page. No listing has availability limits, so dates do not hide listings; they set the number of nights and the total price shown on each card and details page.
+- **Filters** on the results page: "Maximum price per night (USD)" (whole dollars, inclusive) and the amenities Wi-Fi, Parking, Breakfast, Swimming pool and Air conditioning. A stay must have every selected amenity. Filters apply as soon as they change, and the page states the number of stays shown and the filters in effect.
+- The destination, dates, guests and filters are kept in the URL, so they survive a refresh, Back, and a visit to a listing.
+- The details page shows the stay's dates (editable), nights, total, and amenities, and has **Add to itinerary**. Details URLs from the earlier HTML-card version still resolve.
+- New searches never read saved searches: the home and results forms start from the URL only.
+
+### Trip itinerary
+
+`/itinerary` shows the recorded flight and stay with every field, and has **Remove** buttons. The **Itinerary** link is in the StayScape header and on the flight results and details pages. Adding a flight or stay when one is already recorded replaces it. The itinerary is stored under the `localStorage` key `trip.itinerary`; its initial state is empty. Nothing is added automatically.
+
+### Preparing a session
+
+Do both resets in the participant's browser profile, on the study origin, before every session. Each reset touches only its own key.
+
+1. **Task 1:** open `<site>/stayscape_study_reset` and press **Reset saved searches to initial state** (see [StayScape saved searches](#stayscape-saved-searches)).
+2. **Task 2:** open `<site>/itinerary_study_reset` and press **Reset itinerary to initial state**. The page announces "The itinerary was reset to its initial, empty state." and lists "Flight: none" and "Stay: none".
+3. Open the task's start page in a new tab. Search conditions and filters live in the URL and the flight results in tab history, so a fresh tab starts clean.
+
+Without the pages, run `localStorage.removeItem('trip.itinerary')` (and `localStorage.removeItem('stayscape.savedSearches')` for Task 1) in the DevTools console.
 
 ---
 
