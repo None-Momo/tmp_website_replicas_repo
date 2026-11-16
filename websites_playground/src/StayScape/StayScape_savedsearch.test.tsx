@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import StayScapeSavedSearches, { StayScapeSavedSearchDetails } from './StayScape_savedsearches';
@@ -274,5 +274,51 @@ describe('saved search pages', () => {
 		renderAt('/stayscape_saved/nope');
 		expect(screen.getByRole('heading', { level: 1, name: 'Saved search not found' })).toHaveFocus();
 		expect(screen.getByRole('link', { name: 'Back to saved searches' })).toHaveAttribute('href', '/stayscape_saved');
+	});
+});
+
+describe('stale views after a reset elsewhere', () => {
+	const pageshowFromCache = () => {
+		const e = new Event('pageshow');
+		Object.defineProperty(e, 'persisted', { value: true });
+		return e;
+	};
+
+	test('an open details page re-reads storage when another tab resets it', () => {
+		updateSavedSearch(SEATTLE.id, BUDGET_180);
+		renderAt('/stayscape_saved/seattle-winter-trip');
+		expectSeattleConditions(conditionsRegion(), '$180');
+		// Another tab resets: storage changes, then that tab's write fires "storage" here.
+		resetSavedSearches();
+		act(() => { window.dispatchEvent(new StorageEvent('storage', { key: SAVED_SEARCHES_STORAGE_KEY })); });
+		expectSeattleConditions(conditionsRegion(), '$220');
+	});
+
+	test('a page restored from the back-forward cache re-reads storage', () => {
+		updateSavedSearch(SEATTLE.id, BUDGET_180);
+		renderAt('/stayscape_saved');
+		expect(within(screen.getByRole('article', { name: 'Seattle Winter Trip' })).getByText('$180')).toBeInTheDocument();
+		resetSavedSearches();
+		act(() => { window.dispatchEvent(pageshowFromCache()); });
+		expect(within(screen.getByRole('article', { name: 'Seattle Winter Trip' })).getByText('$220')).toBeInTheDocument();
+	});
+
+	test('unrelated storage keys and ordinary page shows do not remount', () => {
+		renderAt('/stayscape_saved/seattle-winter-trip/edit');
+		fireEvent.change(screen.getByLabelText('Maximum budget'), { target: { value: '175' } });
+		act(() => {
+			window.dispatchEvent(new StorageEvent('storage', { key: 'trip.itinerary' }));
+			window.dispatchEvent(new Event('pageshow'));
+		});
+		expect(screen.getByLabelText('Maximum budget')).toHaveValue(175);
+	});
+
+	test('the reset page states readiness and the current budget', () => {
+		updateSavedSearch(SEATTLE.id, BUDGET_180);
+		renderAt('/stayscape_study_reset');
+		const readiness = screen.getByRole('region', { name: 'Task 1 readiness' });
+		expect(readiness).toHaveTextContent('Not ready: the saved searches differ from the initial state. Seattle Winter Trip has a maximum budget of $180.');
+		userEvent.click(screen.getByRole('button', { name: 'Reset saved searches to initial state' }));
+		expect(screen.getByRole('region', { name: 'Task 1 readiness' })).toHaveTextContent('Ready: the saved searches match the initial state. Seattle Winter Trip has a maximum budget of $220.');
 	});
 });

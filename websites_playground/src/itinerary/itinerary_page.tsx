@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format, isValid, parseISO } from 'date-fns';
+import { useStorageRefresh } from '../utils/useStorageRefresh';
 import {
+	ITINERARY_STORAGE_KEY,
 	Itinerary,
 	loadItinerary,
 	removeItineraryFlight,
@@ -41,7 +43,10 @@ const ItineraryShell: React.FC<{ children: React.ReactNode }> = ({ children }) =
 );
 
 /** /itinerary: the flight and stay recorded for the trip, read from storage. */
-export const ItineraryPage: React.FC = () => {
+/** Re-reads storage when it changed in another tab or the page came back from the back-forward cache. */
+export const ItineraryPage: React.FC = () => <ItinerarySummary key={useStorageRefresh(ITINERARY_STORAGE_KEY)} />;
+
+const ItinerarySummary: React.FC = () => {
 	const [itinerary, setItinerary] = useState<Itinerary>(() => loadItinerary());
 	const [status, setStatus] = useState('');
 	const headingRef = useRef<HTMLHeadingElement>(null);
@@ -126,7 +131,9 @@ export const ItineraryPage: React.FC = () => {
 };
 
 /** /itinerary_study_reset: study-staff page, not linked from the site. */
-export const ItineraryResetPage: React.FC = () => {
+export const ItineraryResetPage: React.FC = () => <ItineraryReset key={useStorageRefresh(ITINERARY_STORAGE_KEY)} />;
+
+const ItineraryReset: React.FC = () => {
 	const [itinerary, setItinerary] = useState<Itinerary>(() => loadItinerary());
 	const [status, setStatus] = useState('');
 	const [failure, setFailure] = useState('');

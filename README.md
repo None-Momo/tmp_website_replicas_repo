@@ -223,7 +223,10 @@ Reset in the browser profile the participant will use, on the origin that serves
 
 1. Open `<site>/stayscape_study_reset`, for example `http://localhost:3000/stayscape_study_reset`.
 2. Read the "Current saved searches" section, then press **Reset saved searches to initial state**. The page announces "Saved searches were reset to their initial state." and the current list shows Seattle Winter Trip with a $220 maximum budget.
-3. Optionally open `/stayscape_saved/seattle-winter-trip` to confirm the values, then go to the task's start page.
+3. Check the **Task 1 readiness** box. It must say "Ready: the saved searches match the initial state. Seattle Winter Trip has a maximum budget of $220."
+4. Close every StayScape tab left from the previous run, then open the task's start page in a new tab. Do not press Back to return to an earlier page.
+
+Saved values persist by design: if the reset is skipped, the next run sees the previous run's $180. The reset must be done in the same browser profile MORPH uses, on `https://morph-fake-websites.onrender.com`; another profile, an incognito window or `localhost` has separate storage. Saved-search and itinerary pages re-read storage when another tab changes it and when the browser restores a page from its back-forward cache, so a page left open during a reset updates itself to the reset values.
 
 Opening the reset page changes nothing by itself; only the button writes. The reset replaces the saved-searches key only, so other browser data is left alone, and it can be repeated any number of times without creating duplicates.
 

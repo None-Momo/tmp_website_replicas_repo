@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
+	SAVED_SEARCHES_STORAGE_KEY,
 	SavedSearchFormErrors,
 	SavedSearchFormValues,
 	StayScapeSavedSearch,
@@ -17,6 +18,7 @@ import {
 	savedSearchPath,
 	useFocusOnMount,
 } from './StayScape_savedsearches';
+import { useStorageRefresh } from '../utils/useStorageRefresh';
 
 type FieldKey = keyof SavedSearchFormValues;
 
@@ -185,7 +187,9 @@ const SavedSearchEditForm: React.FC<{ search: StayScapeSavedSearch }> = ({ searc
 };
 
 /** /stayscape_saved/:id/edit: edit every condition of one saved search. */
-export const StayScapeSavedSearchEdit: React.FC = () => {
+export const StayScapeSavedSearchEdit: React.FC = () => <SavedSearchEdit key={useStorageRefresh(SAVED_SEARCHES_STORAGE_KEY)} />;
+
+const SavedSearchEdit: React.FC = () => {
 	const { id } = useParams<{ id: string }>();
 	const [search] = useState(() => findSavedSearch(id));
 	return search ? <SavedSearchEditForm search={search} /> : <SavedSearchNotFound />;

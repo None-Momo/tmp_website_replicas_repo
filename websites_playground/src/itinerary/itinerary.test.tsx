@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ItineraryPage, ItineraryResetPage } from './itinerary_page';
@@ -90,4 +90,14 @@ test('malformed stored data reads as empty', () => {
 	expect(loadItinerary()).toEqual({ flight: null, stay: null });
 	window.localStorage.setItem(ITINERARY_STORAGE_KEY, 'not json');
 	expect(loadItinerary()).toEqual({ flight: null, stay: null });
+});
+
+test('an open itinerary page re-reads storage after a reset in another tab', () => {
+	setItineraryFlight(FLIGHT);
+	renderPage();
+	expect(screen.getByText('NK 1234')).toBeInTheDocument();
+	resetItinerary();
+	act(() => { window.dispatchEvent(new StorageEvent('storage', { key: ITINERARY_STORAGE_KEY })); });
+	expect(screen.queryByText('NK 1234')).not.toBeInTheDocument();
+	expect(screen.getByText('No flight added yet.', { exact: false })).toBeInTheDocument();
 });

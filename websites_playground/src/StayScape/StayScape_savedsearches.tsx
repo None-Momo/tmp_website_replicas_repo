@@ -6,7 +6,9 @@ import {
 	formatBudget,
 	formatSavedSearchDate,
 	loadSavedSearches,
+	SAVED_SEARCHES_STORAGE_KEY,
 } from './StayScape_savedsearch_data';
+import { useStorageRefresh } from '../utils/useStorageRefresh';
 
 export const SAVED_SEARCHES_PATH = '/stayscape_saved';
 export const savedSearchPath = (id: string) => `${SAVED_SEARCHES_PATH}/${encodeURIComponent(id)}`;
@@ -97,7 +99,7 @@ export const SavedSearchNotFound: React.FC = () => {
 };
 
 /** /stayscape_saved: every saved search with its conditions and actions. */
-const StayScapeSavedSearches: React.FC = () => {
+const SavedSearchesList: React.FC = () => {
 	const [searches] = useState(() => loadSavedSearches());
 	const headingRef = useFocusOnMount<HTMLHeadingElement>();
 	const count = searches.length;
@@ -145,10 +147,15 @@ const StayScapeSavedSearches: React.FC = () => {
 	);
 };
 
+/** Re-reads storage when it changed in another tab or the page came back from the back-forward cache. */
+const StayScapeSavedSearches: React.FC = () => <SavedSearchesList key={useStorageRefresh(SAVED_SEARCHES_STORAGE_KEY)} />;
+
 export default StayScapeSavedSearches;
 
 /** /stayscape_saved/:id: the persisted conditions of one saved search. */
-export const StayScapeSavedSearchDetails: React.FC = () => {
+export const StayScapeSavedSearchDetails: React.FC = () => <SavedSearchDetails key={useStorageRefresh(SAVED_SEARCHES_STORAGE_KEY)} />;
+
+const SavedSearchDetails: React.FC = () => {
 	const { id } = useParams<{ id: string }>();
 	const location = useLocation();
 	const navigate = useNavigate();

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { INITIAL_SAVED_SEARCHES, loadSavedSearches, resetSavedSearches } from './StayScape_savedsearch_data';
+import { INITIAL_SAVED_SEARCHES, SAVED_SEARCHES_STORAGE_KEY, StayScapeSavedSearch, formatBudget, loadSavedSearches, resetSavedSearches } from './StayScape_savedsearch_data';
+import { useStorageRefresh } from '../utils/useStorageRefresh';
 import {
 	PRIMARY_ACTION_CLASS,
 	SAVED_SEARCHES_PATH,
@@ -13,7 +14,12 @@ import {
 // /stayscape_study_reset: a page for study staff, not linked from anywhere on
 // the site. Opening it changes nothing; the button restores the saved
 // searches to their initial state. See README.md, "StayScape saved searches".
-export const StayScapeSavedSearchReset: React.FC = () => {
+const matchesInitial = (searches: StayScapeSavedSearch[]) =>
+	JSON.stringify(searches) === JSON.stringify(INITIAL_SAVED_SEARCHES);
+
+export const StayScapeSavedSearchReset: React.FC = () => <SavedSearchReset key={useStorageRefresh(SAVED_SEARCHES_STORAGE_KEY)} />;
+
+const SavedSearchReset: React.FC = () => {
 	const [searches, setSearches] = useState(() => loadSavedSearches());
 	const [status, setStatus] = useState('');
 	const [failure, setFailure] = useState('');
@@ -52,6 +58,21 @@ export const StayScapeSavedSearchReset: React.FC = () => {
 						))}
 					</ul>
 				)}
+			</section>
+
+			{/* Readiness for the next Task 1 run, in words (not colour alone). */}
+			<section aria-labelledby="reset-readiness-heading" className={`mb-6 rounded-lg border-2 px-4 py-3 ${matchesInitial(searches) ? 'border-green-600 bg-green-50 text-green-900' : 'border-amber-600 bg-amber-50 text-amber-900'}`}>
+				<h2 id="reset-readiness-heading" className="text-lg font-semibold">Task 1 readiness</h2>
+				{matchesInitial(searches) ? (
+					<p>Ready: the saved searches match the initial state. {searches[0].name} has a maximum budget of {formatBudget(searches[0].maxBudget, searches[0].currency)}.</p>
+				) : (
+					<p>
+						Not ready: the saved searches differ from the initial state.
+						{searches[0] ? ` ${searches[0].name} has a maximum budget of ${formatBudget(searches[0].maxBudget, searches[0].currency)}.` : ''}
+						{' '}Press the reset button below.
+					</p>
+				)}
+				<p className="mt-1 text-sm">After resetting, close any StayScape tabs left from the previous run and open the task's start page in a new tab. Do not use Back.</p>
 			</section>
 
 			<button type="button" onClick={handleReset} className={PRIMARY_ACTION_CLASS}>
