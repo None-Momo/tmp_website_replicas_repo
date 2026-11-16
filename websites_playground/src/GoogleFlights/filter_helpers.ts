@@ -1,9 +1,18 @@
 import { Flight } from "./flightAsset";
 import { Filters } from "./filterbar";
 
-const timeToMin = (t: string) => {
-	const [h, m] = t.split(":").map(Number);
-	return h * 60 + (m || 0);
+/** Minutes after midnight for a displayed time: "5:15 PM" -> 1035, "12:05 AM" -> 5,
+ *  "17:15" -> 1035. The scraped times are 12-hour with AM/PM (often after a
+ *  narrow no-break space); splitting on ":" alone read "5:15 PM" as 5:00. */
+export const timeToMin = (t: string) => {
+	const m = /(\d{1,2}):(\d{2})\s*([AaPp])?\.?\s*[Mm]?/.exec(t.replace(/[\u202f\u00a0]/g, " "));
+	if (!m) return NaN;
+	let h = Number(m[1]) % 24;
+	const min = Number(m[2]);
+	const meridiem = m[3]?.toUpperCase();
+	if (meridiem === "A") h = h % 12;            // 12:xx AM is just after midnight
+	else if (meridiem === "P") h = (h % 12) + 12; // 12:xx PM is just after noon
+	return h * 60 + min;
 };
 const durToMin = (d: string) => {
 	const h = /(\d+)\s*h/.exec(d)?.[1];
@@ -17,8 +26,11 @@ const stopsMatch = (stops: number, wanted: ("nonstop" | "1stop" | "2plus")[]) =>
 	if (stops >= 2 && wanted.includes("2plus")) return true;
 	return false;
 };
-const inDepartWindow = (tMin: number, startH: number, endH: number) => {
-	const a = startH * 60, b = endH * 60;
+/** startH and endH are whole hours; the end hour is inclusive through :59,
+ *  so 0-23 covers the whole day (it used to drop departures after 11:00 PM). */
+export const inDepartWindow = (tMin: number, startH: number, endH: number) => {
+	if (Number.isNaN(tMin)) return true; // unknown time: do not hide the flight
+	const a = startH * 60, b = endH * 60 + 59;
 	if (a <= b) return tMin >= a && tMin <= b;
 	// wrap-around (e.g., 22:00–06:00)
 	return tMin >= a || tMin <= b;

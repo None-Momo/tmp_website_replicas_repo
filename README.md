@@ -254,7 +254,9 @@ These features support the cross-site study task (flight site, then StayScape, t
 - The departure date is the one chosen on the search page. The scraped results stand for flights on that date; they are not filtered by date.
 - The arrival date is the departure date plus the day offset in the scraped itinerary label ("Leaves ... on Monday, September 22 and arrives ... on Tuesday, September 23"). That offset already reflects overnight flying and time zones, so a flight shown as "+1 day" arrives on the next calendar day.
 - Flight numbers are mock values: the scraped data has none. They are derived deterministically from each flight's airline, airports and times, so they are the same in every session.
-- The scraped Chicago and New York files list every flight twice. The parser keeps the first copy, so the results show 28 and 23 flights.
+- The scraped Chicago and New York files list every flight twice. The parser keeps the first copy, so the results show 29 and 23 flights.
+- One Chicago flight is a hand-added mock record, so that an O'Hare departure arrives on the next calendar day: Prairie Air (code P9, fictional), nonstop ORD 10:45 PM to LAX 1:00 AM next day, 4 hr 15 min, $239. That matches the time zones (10:45 PM CST is 04:45 UTC; plus 4 h 15 min is 09:00 UTC, which is 1:00 AM PST). It was cloned from a scraped card in `flight_ORDLAX_results.txt` (both copies), so it is parsed like every other flight; every other ORD departure arrives the same day.
+- The results page has a **Departure time** filter with two sliders, "Departs at or after" and "Departs at or before" (whole hours, local to the departure airport; the end hour includes its :59 minute; an end earlier than the start covers overnight departures). Departure times are read with their AM/PM.
 - The details URL is `/flight_details/<slug>?date=YYYY-MM-DD`. Older slugs without the flight number still resolve to the first matching flight.
 - The details page has **Add to itinerary**, which records the flight with its dates.
 

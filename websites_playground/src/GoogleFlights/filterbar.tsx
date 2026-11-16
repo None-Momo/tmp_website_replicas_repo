@@ -69,6 +69,31 @@ export function FilterBar({
 					/>
 				</Dropdown>
 
+				<Dropdown label="Departure time">
+					<SliderRow
+						label={`Departs at or after ${hourLabel(value.departStart)}`}
+						min={0}
+						max={23}
+						step={1}
+						value={value.departStart}
+						scale="12:00 AM — 11:00 PM"
+						onChange={(departStart) => onChange({ ...value, departStart })}
+					/>
+					<div className="mt-3" />
+					<SliderRow
+						label={`Departs at or before ${hourLabel(value.departEnd, true)}`}
+						min={0}
+						max={23}
+						step={1}
+						value={value.departEnd}
+						scale="12:59 AM — 11:59 PM"
+						onChange={(departEnd) => onChange({ ...value, departEnd })}
+					/>
+					<p className="mt-2 text-[11px] text-gray-600">
+						Times are local to the departure airport. An earlier end than start covers overnight departures.
+					</p>
+				</Dropdown>
+
 				<Dropdown label="Price">
 					<SliderRow
 						label={`Up to $${value.priceMax}`}
@@ -118,6 +143,13 @@ export function FilterBar({
 }
 
 /* ---------- helpers & tiny UI primitives ---------- */
+
+/** 0 -> "12:00 AM", 13 -> "1:00 PM"; with endOfHour, 23 -> "11:59 PM". */
+function hourLabel(h: number, endOfHour = false): string {
+	const suffix = h < 12 ? "AM" : "PM";
+	const hour12 = h % 12 === 0 ? 12 : h % 12;
+	return `${hour12}:${endOfHour ? "59" : "00"} ${suffix}`;
+}
 
 function Dropdown({
 	label,
@@ -213,6 +245,7 @@ function SliderRow({
 	max,
 	step,
 	onChange,
+	scale,
 }: {
 	label: string;
 	value: number;
@@ -220,6 +253,8 @@ function SliderRow({
 	max: number;
 	step: number;
 	onChange: (v: number) => void;
+	/** Text under the slider; defaults to "min — max". */
+	scale?: string;
 }) {
 	return (
 		<div>
@@ -235,7 +270,7 @@ function SliderRow({
 				className="w-full accent-blue-600"
 			/>
 			<div className="mt-1 text-[11px] text-gray-500">
-				{min} — {max}
+				{scale ?? `${min} — ${max}`}
 			</div>
 		</div>
 	);
