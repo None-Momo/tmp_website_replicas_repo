@@ -207,6 +207,18 @@ StayScape has a **Saved searches** area for the "modify existing content" study 
 
 The data lives in the browser's `localStorage` under the key `stayscape.savedSearches` (see `websites_playground/src/StayScape/StayScape_savedsearch_data.ts`). The initial record is written only when that key is absent, so edits survive navigation, page refreshes and remounts, and nothing resets on its own. Saving replaces the record in place and never adds one. There is no server-side copy: each browser profile and each origin (for example `http://localhost:3000` and `http://127.0.0.1:3001`) keeps its own data.
 
+### Automatic initialization for each MORPH run
+
+MORPH starts each new Task 1 run by opening:
+
+```
+/stayscape?study_init=stayscape_saved_01&study_run_id=<unique id>
+```
+
+The first time StayScape sees a run id for `stayscape_saved_01`, it restores the saved searches to the initial state below. This happens synchronously while the home page first renders, before anything is shown. The id is then recorded under the `localStorage` key `stayscape.studyInit`, which remembers the 500 most recent ids. Any later visit with the same id does nothing, including refreshing the start URL, pressing Back to it, or opening it again, so the run's own edit to $180 survives. A new id restores $220.
+
+Nothing else resets: visits without both parameters, an unknown `study_init` value, and the parameters on any page other than `/stayscape` are ignored. Only `stayscape.savedSearches` is reset; the itinerary is never touched. The record lives in the same browser profile as the data, so ids are tracked per profile. The manual reset page below remains as a fallback, and it shows the last automatically initialized run id.
+
 ### Initial state
 
 | Field          | Value                              |

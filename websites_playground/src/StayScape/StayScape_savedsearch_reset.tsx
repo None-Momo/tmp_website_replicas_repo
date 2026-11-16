@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { INITIAL_SAVED_SEARCHES, SAVED_SEARCHES_STORAGE_KEY, StayScapeSavedSearch, formatBudget, loadSavedSearches, resetSavedSearches } from './StayScape_savedsearch_data';
 import { useStorageRefresh } from '../utils/useStorageRefresh';
+import { getStudyInitRecord } from './StayScape_study_init';
 import {
 	PRIMARY_ACTION_CLASS,
 	SAVED_SEARCHES_PATH,
@@ -73,6 +74,14 @@ const SavedSearchReset: React.FC = () => {
 					</p>
 				)}
 				<p className="mt-1 text-sm">After resetting, close any StayScape tabs left from the previous run and open the task's start page in a new tab. Do not use Back.</p>
+				<p className="mt-1 text-sm">
+					{(() => {
+						const rec = getStudyInitRecord('stayscape_saved_01');
+						return rec
+							? `Automatic initialization: the last new run was "${rec.lastRunId}" at ${new Date(rec.lastInitializedAt).toLocaleString('en-US')} (${rec.runIds.length} run IDs remembered on this browser).`
+							: 'Automatic initialization: no MORPH run has been initialized on this browser yet.';
+					})()}
+				</p>
 			</section>
 
 			<button type="button" onClick={handleReset} className={PRIMARY_ACTION_CLASS}>

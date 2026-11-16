@@ -1,9 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Search, Calendar, Users } from 'lucide-react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { checkStayDates, staySearchQuery } from './StayScape_search';
+import { applyStudyInit } from './StayScape_study_init';
 
 const ScapeStay: React.FC = () => {
+	// A study start URL (?study_init=...&study_run_id=...) restores that task's
+	// initial data the first time its run id is seen. It runs synchronously
+	// during the first render for each distinct query string, so the reset is
+	// written before anything is shown; repeats of the same run id are no-ops.
+	const { search: query } = useLocation();
+	const initializedFor = useRef<string | null>(null);
+	if (initializedFor.current !== query) {
+		initializedFor.current = query;
+		applyStudyInit(query);
+	}
+
 	const [location, setLocation] = useState('');
 	const [checkIn, setCheckIn] = useState('');
 	const [checkOut, setCheckOut] = useState('');
